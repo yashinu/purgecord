@@ -816,7 +816,7 @@
     function showFocus(job) {
       const d = job._dm || {};
       el("focus").hidden = false;
-      el("focusAvatar").src = d.icon || "";
+      el("focusAvatar").src = d.icon && /^https:\/\//.test(d.icon) ? d.icon : "";
       el("focusName").textContent = d.name || job.channelId;
       el("focusProg").textContent = "ba\u015Fl\u0131yor...";
       if (el("followDm").checked) {
@@ -835,14 +835,11 @@
     async function runDm({ dryRun }) {
       const jobs = buildJobs();
       if (!jobs.length) return log("error", "Hedef DM yok (se\xE7im/moda g\xF6re bo\u015F).");
+      if (!dryRun && !window.confirm(`${jobs.length} DM'de kendi mesajlar\u0131n silinecek. Devam?`)) return;
       const { api, token } = ctx.buildApi();
       if (!token) return log("error", "Token yok.");
       ctx.makeEngine(api);
       ctx.startWatchdog();
-      if (!dryRun && !window.confirm(`${jobs.length} DM'de kendi mesajlar\u0131n silinecek. Devam?`)) {
-        ctx.setRunningUI(false);
-        return;
-      }
       ctx.switchTab("log");
       log("info", `${jobs.length} DM i\u015Flenecek (${dryRun ? "dry-run" : "silme"}).`);
       const engine = ctx.getEngine();
@@ -967,6 +964,7 @@
         wait: (ms) => new Promise((r) => setTimeout(r, ms)),
         signal: abort.signal,
         onThrottle: ({ ms }) => {
+          if (engine) engine.state.lastProgressTs = Date.now();
           if (engine && ms) {
             const next = Math.min(1e4, Math.max(engine.options.deleteDelay, Math.round(ms)));
             if (next > engine.options.deleteDelay) {
@@ -1019,7 +1017,7 @@
       watchdog = new Watchdog({
         getLastProgress: () => engine ? engine.state.lastProgressTs : Date.now(),
         isRunning: () => !!(engine && engine.state.running),
-        onStall: () => log("warn", "\u0130lerleme duraklad\u0131; motor bir sonraki denemede kald\u0131\u011F\u0131 cursor'dan s\xFCrd\xFCr\xFCr."),
+        onStall: () => log("warn", `Uzun s\xFCredir ilerleme yok. Ger\xE7ekten tak\u0131ld\u0131ysa Durdur'a bas\u0131p paneldeki "Devam et" ile kald\u0131\u011F\u0131n yerden s\xFCrebilirsin.`),
         stallMs: 9e4
       });
       watchdog.start();
@@ -1048,17 +1046,23 @@
     async function runChannel({ dryRun }) {
       const guildId = el("guildId").value.trim();
       const channelIds = el("channelId").value.trim().split(/\s*,\s*/).filter(Boolean);
-      if (!channelIds.length) return log("error", "Channel ID gerekli.");
+      const filters = getFilters();
+      let jobs, confirmMsg;
+      if (channelIds.length) {
+        jobs = channelIds.map((ch) => ({ channelId: ch, guildId, filters }));
+        confirmMsg = `${channelIds.length} kanal/DM'de filtreye uyan mesajlar\u0131n silinecek. Devam?`;
+      } else if (guildId && guildId !== "@me") {
+        if (!filters.authorId) return log("error", "Sunucu-geneli silmede Author ID gerekli (yaln\u0131z kendi mesajlar\u0131n silinir).");
+        jobs = [{ guildId, filters }];
+        confirmMsg = `Bu sunucudaki (${guildId}) kendi mesajlar\u0131n silinecek. Devam?`;
+      } else {
+        return log("error", "Channel ID, veya sunucu-geneli silme i\xE7in Server ID + Author ID gerekli.");
+      }
+      if (!dryRun && !window.confirm(confirmMsg)) return;
       const { api, token } = buildApi();
       if (!token) return log("error", "Token bulunamad\u0131.");
       makeEngine(api);
       startWatchdog();
-      const filters = getFilters();
-      const jobs = channelIds.map((ch) => ({ channelId: ch, guildId, filters }));
-      if (!dryRun && !window.confirm(`${channelIds.length} kanal/DM'de filtreye uyan mesajlar\u0131n silinecek. Devam?`)) {
-        setRunningUI(false);
-        return;
-      }
       switchTab("log");
       log("info", dryRun ? "Dry-run ba\u015Flad\u0131 (silme yok)." : "Silme ba\u015Flad\u0131.");
       await engine.runQueue(jobs, { dryRun });

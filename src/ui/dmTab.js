@@ -96,7 +96,7 @@ export function initDmTab(ctx) {
   function showFocus(job) {
     const d = job._dm || {};
     el('focus').hidden = false;
-    el('focusAvatar').src = d.icon || '';
+    el('focusAvatar').src = (d.icon && /^https:\/\//.test(d.icon)) ? d.icon : '';
     el('focusName').textContent = d.name || job.channelId;
     el('focusProg').textContent = 'başlıyor...';
     if (el('followDm').checked) {
@@ -116,15 +116,12 @@ export function initDmTab(ctx) {
     const jobs = buildJobs();
     if (!jobs.length) return log('error', 'Hedef DM yok (seçim/moda göre boş).');
 
+    if (!dryRun && !window.confirm(`${jobs.length} DM'de kendi mesajların silinecek. Devam?`)) return;
+
     const { api, token } = ctx.buildApi();
     if (!token) return log('error', 'Token yok.');
     ctx.makeEngine(api);
     ctx.startWatchdog();
-
-    if (!dryRun && !window.confirm(`${jobs.length} DM'de kendi mesajların silinecek. Devam?`)) {
-      ctx.setRunningUI(false);
-      return;
-    }
     ctx.switchTab('log');
     log('info', `${jobs.length} DM işlenecek (${dryRun ? 'dry-run' : 'silme'}).`);
 

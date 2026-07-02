@@ -122,6 +122,7 @@ export function initUI() {
       wait: (ms) => new Promise((r) => setTimeout(r, ms)),
       signal: abort.signal,
       onThrottle: ({ ms }) => {
+        if (engine) engine.state.lastProgressTs = Date.now();
         if (engine && ms) {
           const next = Math.min(10000, Math.max(engine.options.deleteDelay, Math.round(ms)));
           if (next > engine.options.deleteDelay) {
@@ -174,7 +175,7 @@ export function initUI() {
     watchdog = new Watchdog({
       getLastProgress: () => (engine ? engine.state.lastProgressTs : Date.now()),
       isRunning: () => !!(engine && engine.state.running),
-      onStall: () => log('warn', 'İlerleme durakladı; motor bir sonraki denemede kaldığı cursor\'dan sürdürür.'),
+      onStall: () => log('warn', 'Uzun süredir ilerleme yok. Gerçekten takıldıysa Durdur\'a basıp paneldeki "Devam et" ile kaldığın yerden sürebilirsin.'),
       stallMs: 90000,
     });
     watchdog.start();
@@ -207,20 +208,28 @@ export function initUI() {
   async function runChannel({ dryRun }) {
     const guildId = el('guildId').value.trim();
     const channelIds = el('channelId').value.trim().split(/\s*,\s*/).filter(Boolean);
-    if (!channelIds.length) return log('error', 'Channel ID gerekli.');
+    const filters = getFilters();
+
+    let jobs, confirmMsg;
+    if (channelIds.length) {
+      jobs = channelIds.map((ch) => ({ channelId: ch, guildId, filters }));
+      confirmMsg = `${channelIds.length} kanal/DM'de filtreye uyan mesajların silinecek. Devam?`;
+    } else if (guildId && guildId !== '@me') {
+      // Sunucu-geneli silme (search stratejisi): kanal yok, guild var
+      if (!filters.authorId) return log('error', 'Sunucu-geneli silmede Author ID gerekli (yalnız kendi mesajların silinir).');
+      jobs = [{ guildId, filters }];
+      confirmMsg = `Bu sunucudaki (${guildId}) kendi mesajların silinecek. Devam?`;
+    } else {
+      return log('error', 'Channel ID, veya sunucu-geneli silme için Server ID + Author ID gerekli.');
+    }
+
+    if (!dryRun && !window.confirm(confirmMsg)) return;
 
     const { api, token } = buildApi();
     if (!token) return log('error', 'Token bulunamadı.');
     makeEngine(api);
     startWatchdog();
 
-    const filters = getFilters();
-    const jobs = channelIds.map((ch) => ({ channelId: ch, guildId, filters }));
-
-    if (!dryRun && !window.confirm(`${channelIds.length} kanal/DM'de filtreye uyan mesajların silinecek. Devam?`)) {
-      setRunningUI(false);
-      return;
-    }
     switchTab('log');
     log('info', dryRun ? 'Dry-run başladı (silme yok).' : 'Silme başladı.');
     await engine.runQueue(jobs, { dryRun });
