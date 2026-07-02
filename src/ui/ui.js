@@ -6,6 +6,7 @@ import { DeleteEngine } from '../core/DeleteEngine.js';
 import { Checkpoint } from '../core/Checkpoint.js';
 import { Watchdog } from '../core/Watchdog.js';
 import { getToken, getAuthorId, parseIdsFromUrl } from '../discord/token.js';
+import { initDmTab } from './dmTab.js';
 
 // ---- küçük yardımcılar ----
 function insertCss(css) {
@@ -269,7 +270,7 @@ export function initUI() {
     onProgress: null,  // Task 14 doldurur (focus kartı ilerlemesi)
   };
 
-  // Task 14: initDmTab(ctx);
+  initDmTab(ctx);
 
   log('info', 'Purgecord hazır. Bir sekme seç ve başlat.');
   return ctx;
