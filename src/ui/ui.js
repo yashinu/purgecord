@@ -22,7 +22,6 @@ function findToolbar() {
   return document.querySelector('#app-mount [class*="toolbar_"]') ||
          document.querySelector('#app-mount [class*="-toolbar"]');
 }
-const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 export function initUI() {
   insertCss(styles);
@@ -41,7 +40,8 @@ export function initUI() {
     line.className = `pc-log-line pc-log-${type}`;
     line.textContent = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' ');
     logEl.appendChild(line);
-    logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight;
+    const scroller = logEl.closest('.pc-body');
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
     if (type === 'error') console.error('[purgecord]', ...args);
   }
 
