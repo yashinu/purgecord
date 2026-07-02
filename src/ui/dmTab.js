@@ -54,7 +54,7 @@ export function initDmTab(ctx) {
 
   async function loadDms() {
     const { api, token } = ctx.buildApi();
-    if (!token) return log('error', 'Token yok, DM listesi alınamıyor.');
+    if (!token) return; // buildApi geçersiz token'da detaylı hata yazdı
     log('info', 'DM listesi yükleniyor...');
     try {
       dms = await listDms(api);
@@ -121,8 +121,8 @@ export function initDmTab(ctx) {
     log('verb', 'Onaylandı. Token/motor hazırlanıyor...');
 
     const { api, token } = ctx.buildApi();
-    if (!token) return log('error', 'Token bulunamadı! Gelişmiş > Token alanına elle yapıştır.');
-    log('verb', `Token alındı (uzunluk ${token.length}). Silme başlıyor...`);
+    if (!token) return; // buildApi hata yazdı
+    log('verb', `Token alındı (${token.length} karakter). Silme başlıyor...`);
     ctx.makeEngine(api);
     ctx.startWatchdog();
     ctx.switchTab('log');

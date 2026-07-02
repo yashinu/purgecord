@@ -670,21 +670,35 @@
     const m = String(href).match(/channels\/([\w@]+)\/(\d+)/);
     return m ? { guildId: m[1], channelId: m[2] } : { guildId: null, channelId: null };
   }
+  function looksLikeToken(t) {
+    return typeof t === "string" && t.trim().length >= 30;
+  }
   function getToken() {
+    try {
+      let found = "";
+      window.webpackChunkdiscord_app.push([[Math.random()], {}, (req) => {
+        for (const m of Object.values(req.c || {})) {
+          try {
+            const t = m?.exports?.default?.getToken?.();
+            if (looksLikeToken(t)) {
+              found = t;
+              break;
+            }
+          } catch {
+          }
+        }
+      }]);
+      if (looksLikeToken(found)) return found;
+    } catch {
+    }
     try {
       const iframe = document.body.appendChild(document.createElement("iframe"));
       const raw = iframe.contentWindow.localStorage.token;
       iframe.remove();
-      if (raw) return JSON.parse(raw);
-    } catch {
-    }
-    try {
-      const modules = [];
-      window.webpackChunkdiscord_app.push([["purgecord"], {}, (e) => {
-        for (const c in e.c) modules.push(e.c[c]);
-      }]);
-      const mod = modules.find((m) => m?.exports?.default?.getToken !== void 0);
-      if (mod) return mod.exports.default.getToken();
+      if (raw) {
+        const t = JSON.parse(raw);
+        if (looksLikeToken(t)) return t;
+      }
     } catch {
     }
     return "";
@@ -781,7 +795,7 @@
     }
     async function loadDms() {
       const { api, token } = ctx.buildApi();
-      if (!token) return log("error", "Token yok, DM listesi al\u0131nam\u0131yor.");
+      if (!token) return;
       log("info", "DM listesi y\xFCkleniyor...");
       try {
         dms = await listDms(api);
@@ -842,8 +856,8 @@
       }
       log("verb", "Onayland\u0131. Token/motor haz\u0131rlan\u0131yor...");
       const { api, token } = ctx.buildApi();
-      if (!token) return log("error", "Token bulunamad\u0131! Geli\u015Fmi\u015F > Token alan\u0131na elle yap\u0131\u015Ft\u0131r.");
-      log("verb", `Token al\u0131nd\u0131 (uzunluk ${token.length}). Silme ba\u015Fl\u0131yor...`);
+      if (!token) return;
+      log("verb", `Token al\u0131nd\u0131 (${token.length} karakter). Silme ba\u015Fl\u0131yor...`);
       ctx.makeEngine(api);
       ctx.startWatchdog();
       ctx.switchTab("log");
@@ -937,11 +951,17 @@
       el("guildId").value = guildId || "";
     });
     on("fillToken", () => {
-      try {
-        el("token").value = getToken();
-      } catch {
-        log("error", "Token otomatik al\u0131namad\u0131; elle girin.");
-      }
+      const t = (() => {
+        try {
+          return getToken();
+        } catch {
+          return "";
+        }
+      })();
+      if (looksLikeToken(t)) {
+        el("token").value = t;
+        log("success", `Token al\u0131nd\u0131 (${t.length} karakter).`);
+      } else log("error", `Token otomatik al\u0131namad\u0131. Elle yap\u0131\u015Ft\u0131r \u2192 F12 > Network sekmesi > discord.com/api'ye giden herhangi bir iste\u011Fe t\u0131kla > Request Headers > "authorization" sat\u0131r\u0131ndaki de\u011Feri kopyala.`);
     });
     const bindSlider = (input, valSpan) => {
       const sync = () => valSpan.textContent = input.value;
@@ -956,14 +976,24 @@
     let abort = null;
     function buildApi() {
       abort = new AbortController();
-      const token = el("token").value.trim() || (() => {
-        try {
-          return getToken();
-        } catch {
-          return "";
+      let token = el("token").value.trim();
+      if (!looksLikeToken(token)) {
+        const auto = (() => {
+          try {
+            return getToken();
+          } catch {
+            return "";
+          }
+        })();
+        if (looksLikeToken(auto)) {
+          token = auto;
+          el("token").value = auto;
         }
-      })();
-      if (token && !el("token").value.trim()) el("token").value = token;
+      }
+      if (!looksLikeToken(token)) {
+        log("error", `Ge\xE7erli token yok. "doldur" i\u015Fe yaramad\u0131ysa token'\u0131 elle yap\u0131\u015Ft\u0131r \u2192 F12 > Network > discord.com/api'ye giden herhangi bir iste\u011Fe t\u0131kla > Request Headers > "authorization" de\u011Ferini kopyala.`);
+        return { api: null, token: "" };
+      }
       const api = new ApiClient({
         token,
         fetchImpl: (u, o) => fetch(u, o),
@@ -1071,8 +1101,8 @@
       }
       log("verb", "Onayland\u0131. Token/motor haz\u0131rlan\u0131yor...");
       const { api, token } = buildApi();
-      if (!token) return log("error", "Token bulunamad\u0131! Geli\u015Fmi\u015F > Token alan\u0131na elle yap\u0131\u015Ft\u0131r (a\u015Fa\u011F\u0131daki y\xF6nergeye bak).");
-      log("verb", `Token al\u0131nd\u0131 (uzunluk ${token.length}). Motor kuruldu, silme ba\u015Fl\u0131yor...`);
+      if (!token) return;
+      log("verb", `Token al\u0131nd\u0131 (${token.length} karakter). Motor kuruldu, silme ba\u015Fl\u0131yor...`);
       makeEngine(api);
       startWatchdog();
       switchTab("log");
@@ -1108,7 +1138,7 @@
       on("resume", async () => {
         el("resumeBanner").hidden = true;
         const { api, token } = buildApi();
-        if (!token) return log("error", "Token yok, devam edilemiyor.");
+        if (!token) return;
         makeEngine(api);
         startWatchdog();
         switchTab("log");

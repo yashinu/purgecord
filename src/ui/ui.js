@@ -5,7 +5,7 @@ import { ApiClient } from '../core/ApiClient.js';
 import { DeleteEngine } from '../core/DeleteEngine.js';
 import { Checkpoint } from '../core/Checkpoint.js';
 import { Watchdog } from '../core/Watchdog.js';
-import { getToken, getAuthorId, parseIdsFromUrl } from '../discord/token.js';
+import { getToken, getAuthorId, parseIdsFromUrl, looksLikeToken } from '../discord/token.js';
 import { initDmTab } from './dmTab.js';
 
 // ---- küçük yardımcılar ----
@@ -93,8 +93,9 @@ export function initUI() {
     el('guildId').value = guildId || '';
   });
   on('fillToken', () => {
-    try { el('token').value = getToken(); }
-    catch { log('error', 'Token otomatik alınamadı; elle girin.'); }
+    const t = (() => { try { return getToken(); } catch { return ''; } })();
+    if (looksLikeToken(t)) { el('token').value = t; log('success', `Token alındı (${t.length} karakter).`); }
+    else log('error', 'Token otomatik alınamadı. Elle yapıştır → F12 > Network sekmesi > discord.com/api\'ye giden herhangi bir isteğe tıkla > Request Headers > "authorization" satırındaki değeri kopyala.');
   });
 
   // --- gecikme slider'ları ---
@@ -114,8 +115,15 @@ export function initUI() {
 
   function buildApi() {
     abort = new AbortController();
-    const token = el('token').value.trim() || (() => { try { return getToken(); } catch { return ''; } })();
-    if (token && !el('token').value.trim()) el('token').value = token;
+    let token = el('token').value.trim();
+    if (!looksLikeToken(token)) {
+      const auto = (() => { try { return getToken(); } catch { return ''; } })();
+      if (looksLikeToken(auto)) { token = auto; el('token').value = auto; }
+    }
+    if (!looksLikeToken(token)) {
+      log('error', 'Geçerli token yok. "doldur" işe yaramadıysa token\'ı elle yapıştır → F12 > Network > discord.com/api\'ye giden herhangi bir isteğe tıkla > Request Headers > "authorization" değerini kopyala.');
+      return { api: null, token: '' };
+    }
     const api = new ApiClient({
       token,
       fetchImpl: (u, o) => fetch(u, o),
@@ -228,8 +236,8 @@ export function initUI() {
     log('verb', 'Onaylandı. Token/motor hazırlanıyor...');
 
     const { api, token } = buildApi();
-    if (!token) return log('error', 'Token bulunamadı! Gelişmiş > Token alanına elle yapıştır (aşağıdaki yönergeye bak).');
-    log('verb', `Token alındı (uzunluk ${token.length}). Motor kuruldu, silme başlıyor...`);
+    if (!token) return; // buildApi geçersiz token'da detaylı hata yazdı
+    log('verb', `Token alındı (${token.length} karakter). Motor kuruldu, silme başlıyor...`);
     makeEngine(api);
     startWatchdog();
 
@@ -264,7 +272,7 @@ export function initUI() {
     on('resume', async () => {
       el('resumeBanner').hidden = true;
       const { api, token } = buildApi();
-      if (!token) return log('error', 'Token yok, devam edilemiyor.');
+      if (!token) return; // buildApi hata yazdı
       makeEngine(api); startWatchdog();
       switchTab('log');
       await engine.runQueue([{ ...saved.job, before: saved.before }], { dryRun: false });
