@@ -50,7 +50,8 @@ export function initUI() {
   // --- buton mount + yeniden-mount ---
   function mountBtn() {
     const tb = findToolbar();
-    if (tb && !tb.contains(btn)) tb.prepend(btn);
+    // Araç çubuğunun sağ ucuna (inbox/help kümesine) ekle
+    if (tb && !tb.contains(btn)) tb.append(btn);
   }
   mountBtn();
   const appRoot = document.querySelector('#app-mount') || document.body;

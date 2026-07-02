@@ -1,15 +1,14 @@
 export const buttonHtml = `
-<div id="purgecord-btn" role="button" tabindex="0" aria-label="Purgecord" title="Purgecord — toplu mesaj sil">
+<div id="purgecord-btn" role="button" tabindex="0" aria-label="Purgecord" title="Purgecord — toplu mesaj/DM sil">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M15 3.999V2H9V3.999H3V5.999H21V3.999H15Z"></path>
-    <path d="M5 6.99902V18.999C5 20.101 5.897 20.999 7 20.999H17C18.103 20.999 19 20.101 19 18.999V6.99902H5ZM11 17H9V11H11V17ZM15 17H13V11H15V17Z"></path>
+    <path d="M15 16h4v2h-4zM15 8h7v2h-7zM15 12h6v2h-6zM3 18c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V8H3v10zM14 5h-3l-1-1H6L5 5H2v2h12z"></path>
   </svg>
 </div>`;
 
 export const panelHtml = `
 <div id="purgecord" class="pc-panel pc-redact" hidden>
   <header class="pc-header" data-drag>
-    <span class="pc-logo">🗑️ Purgecord</span>
+    <span class="pc-logo">🧹 Purgecord</span>
     <span class="pc-sub">Toplu mesaj & DM silici</span>
     <span class="pc-spacer"></span>
     <label class="pc-check" title="Ekran paylaşımı için gizle"><input type="checkbox" data-el="redact" checked> Streamer</label>

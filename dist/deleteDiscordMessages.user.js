@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/local/purgecord
-// @version      0.1.0
+// @version      0.2.0
 // @description  Discord toplu mesaj & DM silici (undiscord temelli, sağlamlaştırılmış)
 // @author       local
 // @match        https://*.discord.com/*
-// @icon         https://victornpb.github.io/undiscord/images/icon128.png
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -93,16 +92,15 @@
 
   // src/ui/template.html.js
   var buttonHtml = `
-<div id="purgecord-btn" role="button" tabindex="0" aria-label="Purgecord" title="Purgecord \u2014 toplu mesaj sil">
+<div id="purgecord-btn" role="button" tabindex="0" aria-label="Purgecord" title="Purgecord \u2014 toplu mesaj/DM sil">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M15 3.999V2H9V3.999H3V5.999H21V3.999H15Z"></path>
-    <path d="M5 6.99902V18.999C5 20.101 5.897 20.999 7 20.999H17C18.103 20.999 19 20.101 19 18.999V6.99902H5ZM11 17H9V11H11V17ZM15 17H13V11H15V17Z"></path>
+    <path d="M15 16h4v2h-4zM15 8h7v2h-7zM15 12h6v2h-6zM3 18c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V8H3v10zM14 5h-3l-1-1H6L5 5H2v2h12z"></path>
   </svg>
 </div>`;
   var panelHtml = `
 <div id="purgecord" class="pc-panel pc-redact" hidden>
   <header class="pc-header" data-drag>
-    <span class="pc-logo">\u{1F5D1}\uFE0F Purgecord</span>
+    <span class="pc-logo">\u{1F9F9} Purgecord</span>
     <span class="pc-sub">Toplu mesaj & DM silici</span>
     <span class="pc-spacer"></span>
     <label class="pc-check" title="Ekran payla\u015F\u0131m\u0131 i\xE7in gizle"><input type="checkbox" data-el="redact" checked> Streamer</label>
@@ -995,7 +993,7 @@
     }
     function mountBtn() {
       const tb = findToolbar();
-      if (tb && !tb.contains(btn)) tb.prepend(btn);
+      if (tb && !tb.contains(btn)) tb.append(btn);
     }
     mountBtn();
     const appRoot = document.querySelector("#app-mount") || document.body;
