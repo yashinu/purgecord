@@ -273,6 +273,14 @@ export function setLocale(loc) {
 export function detectLocale() {
   let source = '';
   let loc = '';
+  // 0) Explicit user choice from the in-panel language selector (our own localStorage key).
+  try {
+    const saved = localStorage.getItem('purgecord:lang');
+    if (saved === 'tr' || saved === 'en') {
+      try { console.log(`[Purgecord] locale: ${saved} (user override)`); } catch { /* ignore */ }
+      return saved;
+    }
+  } catch { /* ignore */ }
   // 1) Discord account locale via a same-origin iframe (bypasses Discord's localStorage lock).
   try {
     const iframe = document.body.appendChild(document.createElement('iframe'));

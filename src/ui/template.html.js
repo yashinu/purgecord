@@ -14,6 +14,7 @@ export const panelHtml = `
     <span class="pc-logo">🧹 Purgecord</span>
     <span class="pc-sub">{{subtitle}}</span>
     <span class="pc-spacer"></span>
+    <select class="pc-lang" data-el="lang" title="Language / Dil"><option value="en">EN</option><option value="tr">TR</option></select>
     <label class="pc-check"><input type="checkbox" data-el="redact" checked> {{streamer}}</label>
     <button class="pc-icon-btn" data-action="close" title="{{close}}">✕</button>
   </header>

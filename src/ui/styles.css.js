@@ -11,6 +11,7 @@ export const styles = `
 .pc-logo { font-weight:700; font-size:15px; }
 .pc-sub { font-size:12px; color:var(--text-muted,#949ba4); }
 .pc-spacer { flex:1; }
+.pc-lang { height:26px; background:var(--input-background,#1e1f22); color:var(--text-normal,#dbdee1); border:1px solid transparent; border-radius:4px; font-size:12px; font-weight:600; cursor:pointer; padding:0 4px; }
 .pc-icon-btn { background:none; border:none; color:var(--interactive-normal,#b5bac1); font-size:16px; cursor:pointer; padding:6px; border-radius:4px; }
 .pc-icon-btn:hover { background:var(--background-modifier-hover,rgba(255,255,255,.06)); color:#fff; }
 

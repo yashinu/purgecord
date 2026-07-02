@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/yashinu/purgecord
-// @version      0.3.1
+// @version      0.3.2
 // @description  Bulk delete Discord messages & DMs (based on undiscord, hardened)
 // @author       yashinu
 // @homepageURL  https://github.com/yashinu/purgecord

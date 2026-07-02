@@ -35,7 +35,7 @@ function findMountPoint() {
 }
 
 export function initUI() {
-  setLocale(detectLocale());
+  const LOCALE = setLocale(detectLocale());
   insertCss(styles);
 
   // Fill {{key}} placeholders with localized strings, then build the panel.
@@ -122,6 +122,16 @@ export function initUI() {
 
   // --- redact / streamer mode ---
   el('redact').addEventListener('change', (e) => panel.classList.toggle('pc-redact', e.target.checked));
+
+  // --- language selector (EN/TR). Overrides auto-detect; reload applies it. ---
+  const langSel = el('lang');
+  if (langSel) {
+    langSel.value = LOCALE;
+    langSel.addEventListener('change', () => {
+      try { localStorage.setItem('purgecord:lang', langSel.value); } catch { /* ignore */ }
+      location.reload();
+    });
+  }
 
   // --- fill id/token buttons ---
   on('fillAuthor', () => (el('authorId').value = getAuthorId()));

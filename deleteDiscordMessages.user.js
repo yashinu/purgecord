@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/yashinu/purgecord
-// @version      0.3.1
+// @version      0.3.2
 // @description  Bulk delete Discord messages & DMs (based on undiscord, hardened)
 // @author       yashinu
 // @homepageURL  https://github.com/yashinu/purgecord
@@ -28,6 +28,7 @@
 .pc-logo { font-weight:700; font-size:15px; }
 .pc-sub { font-size:12px; color:var(--text-muted,#949ba4); }
 .pc-spacer { flex:1; }
+.pc-lang { height:26px; background:var(--input-background,#1e1f22); color:var(--text-normal,#dbdee1); border:1px solid transparent; border-radius:4px; font-size:12px; font-weight:600; cursor:pointer; padding:0 4px; }
 .pc-icon-btn { background:none; border:none; color:var(--interactive-normal,#b5bac1); font-size:16px; cursor:pointer; padding:6px; border-radius:4px; }
 .pc-icon-btn:hover { background:var(--background-modifier-hover,rgba(255,255,255,.06)); color:#fff; }
 
@@ -107,6 +108,7 @@
     <span class="pc-logo">\u{1F9F9} Purgecord</span>
     <span class="pc-sub">{{subtitle}}</span>
     <span class="pc-spacer"></span>
+    <select class="pc-lang" data-el="lang" title="Language / Dil"><option value="en">EN</option><option value="tr">TR</option></select>
     <label class="pc-check"><input type="checkbox" data-el="redact" checked> {{streamer}}</label>
     <button class="pc-icon-btn" data-action="close" title="{{close}}">\u2715</button>
   </header>
@@ -533,6 +535,17 @@
   function detectLocale() {
     let source = "";
     let loc = "";
+    try {
+      const saved = localStorage.getItem("purgecord:lang");
+      if (saved === "tr" || saved === "en") {
+        try {
+          console.log(`[Purgecord] locale: ${saved} (user override)`);
+        } catch {
+        }
+        return saved;
+      }
+    } catch {
+    }
     try {
       const iframe = document.body.appendChild(document.createElement("iframe"));
       const raw = iframe.contentWindow.localStorage.locale;
@@ -1279,7 +1292,7 @@
     return null;
   }
   function initUI() {
-    setLocale(detectLocale());
+    const LOCALE2 = setLocale(detectLocale());
     insertCss(styles);
     const localized = panelHtml.replace(/\{\{(\w+)\}\}/g, (_, k) => t(k));
     const panel = createEl(localized);
@@ -1351,6 +1364,17 @@
     }
     panel.querySelectorAll(".pc-tab").forEach((tab) => tab.addEventListener("click", () => switchTab(tab.dataset.tab)));
     el("redact").addEventListener("change", (e) => panel.classList.toggle("pc-redact", e.target.checked));
+    const langSel = el("lang");
+    if (langSel) {
+      langSel.value = LOCALE2;
+      langSel.addEventListener("change", () => {
+        try {
+          localStorage.setItem("purgecord:lang", langSel.value);
+        } catch {
+        }
+        location.reload();
+      });
+    }
     on("fillAuthor", () => el("authorId").value = getAuthorId());
     on("fillGuild", () => {
       const { guildId, channelId } = parseIdsFromUrl();
@@ -1604,7 +1628,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.3.1";
+  var VERSION = "0.3.2";
   function boot() {
     if (window.__purgecord_loaded) return;
     window.__purgecord_loaded = true;
