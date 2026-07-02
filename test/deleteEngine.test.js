@@ -221,6 +221,19 @@ test('closeAfter: DM temizse DELETE /channels/{id} ile kapatılır', async () =>
   assert.ok(calls.some((c) => c.method === 'DELETE' && c.url.endsWith('/channels/c'))); // kanal kapatma DELETE'i
 });
 
+test('onDelete her silinen mesaj için (msg, sonuç) ile çağrılır', async () => {
+  let served = false;
+  const api = fakeApi(({ method }) => {
+    if (method === 'DELETE') return makeResp(204);
+    if (!served) { served = true; return makeResp(200, [m(2), m(1)]); }
+    return makeResp(200, []);
+  });
+  const deleted = [];
+  const engine = engineWith(api, { onDelete: (msg, r) => deleted.push({ id: msg.id, r }) });
+  await engine.runQueue([{ channelId: 'c', filters: { authorId: 'me' } }]);
+  assert.deepEqual(deleted, [{ id: '2', r: 'OK' }, { id: '1', r: 'OK' }]);
+});
+
 test('closeAfter: DM temiz değilse (son kontrolde mesaj var) kapatılmaz', async () => {
   const calls = [];
   let getCount = 0;

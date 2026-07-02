@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/local/purgecord
-// @version      0.2.1
+// @version      0.2.2
 // @description  Discord toplu mesaj & DM silici (undiscord temelli, sağlamlaştırılmış)
 // @author       local
 // @match        https://*.discord.com/*

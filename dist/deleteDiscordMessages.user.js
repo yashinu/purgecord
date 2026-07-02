@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/local/purgecord
-// @version      0.2.1
+// @version      0.2.2
 // @description  Discord toplu mesaj & DM silici (undiscord temelli, sağlamlaştırılmış)
 // @author       local
 // @match        https://*.discord.com/*
@@ -183,7 +183,9 @@
     </section>
 
     <section class="pc-view" data-view="log" hidden>
-      <label class="pc-check" style="margin-bottom:8px"><input type="checkbox" data-el="autoScroll" checked> Logu takip et (son loga kayd\u0131r)</label>
+      <label class="pc-check"><input type="checkbox" data-el="autoScroll" checked> Logu takip et (son loga kayd\u0131r)</label>
+      <label class="pc-check"><input type="checkbox" data-el="logMsgInfo"> Silinen mesaj bilgilerini logla (i\xE7erik dahil \u2014 Streamer modda gizli)</label>
+      <div class="pc-hint" style="margin-bottom:8px">\u0130lk y\xFCklemeden hemen sonra \xE7al\u0131\u015Fmazsa 1-2 sn bekleyip tekrar dene (Discord/webpack hen\xFCz haz\u0131r olmayabilir).</div>
       <pre id="pc-log"></pre>
     </section>
   </div>
@@ -410,7 +412,7 @@
   var noop = () => {
   };
   var DeleteEngine = class {
-    constructor({ api, wait, log = noop, options = {}, onProgress = noop, onStart = noop, onStop = noop, onJobStart = noop, onJobDone = noop, saveCheckpoint = noop }) {
+    constructor({ api, wait, log = noop, options = {}, onProgress = noop, onStart = noop, onStop = noop, onJobStart = noop, onJobDone = noop, onDelete = noop, saveCheckpoint = noop }) {
       this.api = api;
       this.wait = wait;
       this.log = log;
@@ -419,6 +421,7 @@
       this.onStop = onStop;
       this.onJobStart = onJobStart;
       this.onJobDone = onJobDone;
+      this.onDelete = onDelete;
       this.saveCheckpoint = saveCheckpoint;
       this.options = { deleteDelay: 1e3, searchDelay: 1e3, ...options };
       this.resetState();
@@ -536,7 +539,8 @@
         } else {
           for (const msg of toDelete) {
             if (!this.state.running) return;
-            await this.deleteMessage(msg);
+            const r = await this.deleteMessage(msg);
+            this.onDelete(msg, r);
             this.markProgress();
             await this.wait(this.options.deleteDelay);
           }
@@ -633,6 +637,7 @@
             if (!this.state.running) return;
             const r = await this.deleteMessage(msg);
             if (r !== "OK") offset++;
+            this.onDelete(msg, r);
             this.markProgress();
             await this.wait(this.options.deleteDelay);
           }
@@ -998,6 +1003,28 @@
       if (scroller && el("autoScroll")?.checked !== false) scroller.scrollTop = scroller.scrollHeight;
       if (type === "error") console.error("[purgecord]", ...args);
     }
+    function logMsgInfo(msg, r) {
+      const time = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : "";
+      const disc = msg.author?.discriminator && msg.author.discriminator !== "0" ? "#" + msg.author.discriminator : "";
+      const author = (msg.author?.username || "?") + disc;
+      const content = String(msg.content || "").replace(/\n/g, "\u21B5");
+      const status = r && r !== "OK" ? ` (${r})` : "";
+      const mk = (tag, cls, text) => {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        e.textContent = text;
+        return e;
+      };
+      const line = document.createElement("div");
+      line.className = "pc-log-line pc-log-debug";
+      line.append(mk("sup", "", time), " ", mk("b", "pc-priv", author), ": ", mk("i", "pc-priv", content));
+      if (msg.attachments && msg.attachments.length) line.append(" ", mk("span", "pc-priv", `[${msg.attachments.length} ek]`));
+      line.append(" ", mk("sup", "pc-priv", `{ID:${msg.id}}`));
+      if (status) line.append(status);
+      logEl.appendChild(line);
+      const scroller = logEl.closest(".pc-body");
+      if (scroller && el("autoScroll")?.checked !== false) scroller.scrollTop = scroller.scrollHeight;
+    }
     function mountBtn() {
       const mp = findMountPoint();
       if (mp && !mp.host.contains(btn)) {
@@ -1136,6 +1163,9 @@
         onProgress: (s) => renderProgress(s),
         onJobStart: (job) => ctx.onJobStart && ctx.onJobStart(job),
         onJobDone: (job, s) => ctx.onJobDone && ctx.onJobDone(job, s),
+        onDelete: (msg, r) => {
+          if (el("logMsgInfo")?.checked) logMsgInfo(msg, r);
+        },
         saveCheckpoint: (data) => checkpoint.save({ ...data, ts: Date.now() })
       });
       return engine;
@@ -1280,7 +1310,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.2.1";
+  var VERSION = "0.2.2";
   function boot() {
     if (window.__purgecord_loaded) return;
     window.__purgecord_loaded = true;

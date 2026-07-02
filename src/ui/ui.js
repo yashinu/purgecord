@@ -55,6 +55,32 @@ export function initUI() {
     if (scroller && el('autoScroll')?.checked !== false) scroller.scrollTop = scroller.scrollHeight;
     if (type === 'error') console.error('[purgecord]', ...args);
   }
+  // Silinen mesajın bilgisini logla — createElement+textContent (XSS-güvenli).
+  // Yazar/içerik/ID .pc-priv ile sarılı → streamer modda bulanık (undiscord gibi).
+  function logMsgInfo(msg, r) {
+    const time = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : '';
+    const disc = (msg.author?.discriminator && msg.author.discriminator !== '0') ? '#' + msg.author.discriminator : '';
+    const author = (msg.author?.username || '?') + disc;
+    const content = String(msg.content || '').replace(/\n/g, '↵');
+    const status = (r && r !== 'OK') ? ` (${r})` : '';
+
+    const mk = (tag, cls, text) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      e.textContent = text; // otomatik kaçış — HTML enjekte edilmez
+      return e;
+    };
+    const line = document.createElement('div');
+    line.className = 'pc-log-line pc-log-debug';
+    line.append(mk('sup', '', time), ' ', mk('b', 'pc-priv', author), ': ', mk('i', 'pc-priv', content));
+    if (msg.attachments && msg.attachments.length) line.append(' ', mk('span', 'pc-priv', `[${msg.attachments.length} ek]`));
+    line.append(' ', mk('sup', 'pc-priv', `{ID:${msg.id}}`));
+    if (status) line.append(status);
+
+    logEl.appendChild(line);
+    const scroller = logEl.closest('.pc-body');
+    if (scroller && el('autoScroll')?.checked !== false) scroller.scrollTop = scroller.scrollHeight;
+  }
 
   // --- buton mount + yeniden-mount ---
   function mountBtn() {
@@ -188,6 +214,7 @@ export function initUI() {
       onProgress: (s) => renderProgress(s),
       onJobStart: (job) => ctx.onJobStart && ctx.onJobStart(job),
       onJobDone: (job, s) => ctx.onJobDone && ctx.onJobDone(job, s),
+      onDelete: (msg, r) => { if (el('logMsgInfo')?.checked) logMsgInfo(msg, r); },
       saveCheckpoint: (data) => checkpoint.save({ ...data, ts: Date.now() }),
     });
     return engine;

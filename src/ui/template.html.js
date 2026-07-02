@@ -91,7 +91,9 @@ export const panelHtml = `
     </section>
 
     <section class="pc-view" data-view="log" hidden>
-      <label class="pc-check" style="margin-bottom:8px"><input type="checkbox" data-el="autoScroll" checked> Logu takip et (son loga kaydır)</label>
+      <label class="pc-check"><input type="checkbox" data-el="autoScroll" checked> Logu takip et (son loga kaydır)</label>
+      <label class="pc-check"><input type="checkbox" data-el="logMsgInfo"> Silinen mesaj bilgilerini logla (içerik dahil — Streamer modda gizli)</label>
+      <div class="pc-hint" style="margin-bottom:8px">İlk yüklemeden hemen sonra çalışmazsa 1-2 sn bekleyip tekrar dene (Discord/webpack henüz hazır olmayabilir).</div>
       <pre id="pc-log"></pre>
     </section>
   </div>

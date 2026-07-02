@@ -5,7 +5,7 @@ import { oldestId } from './snowflake.js';
 const noop = () => {};
 
 export class DeleteEngine {
-  constructor({ api, wait, log = noop, options = {}, onProgress = noop, onStart = noop, onStop = noop, onJobStart = noop, onJobDone = noop, saveCheckpoint = noop }) {
+  constructor({ api, wait, log = noop, options = {}, onProgress = noop, onStart = noop, onStop = noop, onJobStart = noop, onJobDone = noop, onDelete = noop, saveCheckpoint = noop }) {
     this.api = api;
     this.wait = wait;
     this.log = log;
@@ -14,6 +14,7 @@ export class DeleteEngine {
     this.onStop = onStop;
     this.onJobStart = onJobStart;
     this.onJobDone = onJobDone;
+    this.onDelete = onDelete;
     this.saveCheckpoint = saveCheckpoint;
     this.options = { deleteDelay: 1000, searchDelay: 1000, ...options };
     this.resetState();
@@ -140,7 +141,8 @@ export class DeleteEngine {
       } else {
         for (const msg of toDelete) {
           if (!this.state.running) return;
-          await this.deleteMessage(msg);
+          const r = await this.deleteMessage(msg);
+          this.onDelete(msg, r);
           this.markProgress();
           await this.wait(this.options.deleteDelay);
         }
@@ -224,6 +226,7 @@ export class DeleteEngine {
           if (!this.state.running) return;
           const r = await this.deleteMessage(msg);
           if (r !== 'OK') offset++; // silinemeyen (FAILED/FAIL_SKIP) mesaj indekste kalir -> ilerlet, livelock'u onle
+          this.onDelete(msg, r);
           this.markProgress();
           await this.wait(this.options.deleteDelay);
         }
