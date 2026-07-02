@@ -13,7 +13,7 @@ export function initDmTab(ctx) {
   const searchEl = el('dmSearch');
   const selectAllEl = el('dmSelectAll');
 
-  const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmtTime = (d) => (d ? d.toLocaleDateString() : '');
   const updateCount = () => (countEl.textContent = `${selected.size} seçili / ${dms.length}`);
 
@@ -28,13 +28,20 @@ export function initDmTab(ctx) {
       const row = document.createElement('label');
       row.className = 'pc-dm-row';
       const badge = d.type === CHANNEL_TYPE.GROUP_DM ? 'Grup' : 'DM';
-      const avatar = d.icon ? `<img class="pc-dm-avatar" src="${d.icon}" alt="">` : `<div class="pc-dm-avatar"></div>`;
       row.innerHTML =
         `<input type="checkbox" ${selected.has(d.id) ? 'checked' : ''}>` +
-        avatar +
+        `<div class="pc-dm-avatar" data-avatar></div>` +
         `<div class="pc-dm-meta"><div class="pc-dm-name pc-priv">${escapeHtml(d.name)}</div>` +
         `<div class="pc-dm-time">${fmtTime(d.lastTime)}</div></div>` +
         `<span class="pc-badge">${badge}</span>`;
+      // Avatar: URL'yi HTML olarak ayrıştırmadan property atamasıyla güvenli kur (XSS önlemi)
+      if (d.icon && /^https:\/\//.test(d.icon)) {
+        const img = document.createElement('img');
+        img.className = 'pc-dm-avatar';
+        img.alt = '';
+        img.src = d.icon;
+        row.querySelector('[data-avatar]').replaceWith(img);
+      }
       const cb = row.querySelector('input');
       cb.addEventListener('change', () => {
         if (cb.checked) selected.add(d.id); else selected.delete(d.id);
@@ -122,11 +129,15 @@ export function initDmTab(ctx) {
     log('info', `${jobs.length} DM işlenecek (${dryRun ? 'dry-run' : 'silme'}).`);
 
     const engine = ctx.getEngine();
-    await engine.runQueue(jobs, { dryRun });
-
-    if (dryRun) log('success', `Dry-run: toplam ${engine.state.grandTotal} mesaj filtreye uyuyor.`);
-    else { log('success', `Toplu DM bitti. Silinen: ${engine.state.delCount}, başarısız: ${engine.state.failCount}.`); ctx.checkpoint.clear(); }
-    el('focus').hidden = true;
+    try {
+      await engine.runQueue(jobs, { dryRun });
+      if (dryRun) log('success', `Dry-run: toplam ${engine.state.grandTotal} mesaj filtreye uyuyor.`);
+      else { log('success', `Toplu DM bitti. Silinen: ${engine.state.delCount}, başarısız: ${engine.state.failCount}.`); ctx.checkpoint.clear(); }
+    } catch (err) {
+      log('error', `Toplu DM hatası: ${err?.message || err}`);
+    } finally {
+      el('focus').hidden = true;
+    }
   }
 
   ctx.runDm = runDm;
