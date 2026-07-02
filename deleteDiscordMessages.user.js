@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/yashinu/purgecord
-// @version      0.3.2
+// @version      0.3.3
 // @description  Bulk delete Discord messages & DMs (based on undiscord, hardened)
 // @author       yashinu
 // @homepageURL  https://github.com/yashinu/purgecord
@@ -281,6 +281,35 @@
     return clamp2(ms, o.minDelay, o.maxDelay);
   }
 
+  // src/discord/storage.js
+  var cached = null;
+  function safeLocalStorage() {
+    if (cached) return cached;
+    try {
+      window.localStorage.getItem("__pc_probe");
+      cached = window.localStorage;
+      return cached;
+    } catch {
+    }
+    try {
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      (document.body || document.documentElement).appendChild(iframe);
+      const ls = iframe.contentWindow.localStorage;
+      ls.getItem("__pc_probe");
+      cached = ls;
+      return cached;
+    } catch {
+    }
+    const mem = /* @__PURE__ */ new Map();
+    cached = {
+      getItem: (k) => mem.has(k) ? mem.get(k) : null,
+      setItem: (k, v) => mem.set(k, String(v)),
+      removeItem: (k) => mem.delete(k)
+    };
+    return cached;
+  }
+
   // src/i18n.js
   var STRINGS = {
     en: {
@@ -535,8 +564,9 @@
   function detectLocale() {
     let source = "";
     let loc = "";
+    const ls = safeLocalStorage();
     try {
-      const saved = localStorage.getItem("purgecord:lang");
+      const saved = ls.getItem("purgecord:lang");
       if (saved === "tr" || saved === "en") {
         try {
           console.log(`[Purgecord] locale: ${saved} (user override)`);
@@ -547,9 +577,7 @@
     } catch {
     }
     try {
-      const iframe = document.body.appendChild(document.createElement("iframe"));
-      const raw = iframe.contentWindow.localStorage.locale;
-      iframe.remove();
+      const raw = ls.getItem("locale");
       if (raw) {
         loc = JSON.parse(raw);
         source = "localStorage.locale";
@@ -1369,7 +1397,7 @@
       langSel.value = LOCALE2;
       langSel.addEventListener("change", () => {
         try {
-          localStorage.setItem("purgecord:lang", langSel.value);
+          safeLocalStorage().setItem("purgecord:lang", langSel.value);
         } catch {
         }
         location.reload();
@@ -1406,7 +1434,7 @@
     };
     bindSlider(el("deleteDelay"), el("deleteDelayVal"));
     bindSlider(el("searchDelay"), el("searchDelayVal"));
-    const checkpoint = new Checkpoint(localStorage);
+    const checkpoint = new Checkpoint(safeLocalStorage());
     let engine = null;
     let watchdog = null;
     let abort = null;
@@ -1628,7 +1656,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.3.2";
+  var VERSION = "0.3.3";
   function boot() {
     if (window.__purgecord_loaded) return;
     window.__purgecord_loaded = true;

@@ -6,6 +6,7 @@ import { DeleteEngine } from '../core/DeleteEngine.js';
 import { Checkpoint } from '../core/Checkpoint.js';
 import { Watchdog } from '../core/Watchdog.js';
 import { getToken, getAuthorId, parseIdsFromUrl, looksLikeToken } from '../discord/token.js';
+import { safeLocalStorage } from '../discord/storage.js';
 import { t, detectLocale, setLocale } from '../i18n.js';
 import { initDmTab } from './dmTab.js';
 
@@ -128,7 +129,7 @@ export function initUI() {
   if (langSel) {
     langSel.value = LOCALE;
     langSel.addEventListener('change', () => {
-      try { localStorage.setItem('purgecord:lang', langSel.value); } catch { /* ignore */ }
+      try { safeLocalStorage().setItem('purgecord:lang', langSel.value); } catch { /* ignore */ }
       location.reload();
     });
   }
@@ -161,7 +162,7 @@ export function initUI() {
   bindSlider(el('searchDelay'), el('searchDelayVal'));
 
   // --- runtime state ---
-  const checkpoint = new Checkpoint(localStorage);
+  const checkpoint = new Checkpoint(safeLocalStorage());
   let engine = null;
   let watchdog = null;
   let abort = null;

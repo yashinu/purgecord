@@ -1,6 +1,7 @@
-// Minimal i18n. English is the default/fallback; Turkish is shown to users
-// whose Discord language is Turkish. Detection uses <html lang> (set by Discord),
-// then localStorage.locale, then navigator.language.
+// Minimal i18n. English is the default/fallback; Turkish is shown to users whose
+// Discord language is Turkish, or via the in-panel language selector.
+
+import { safeLocalStorage } from './discord/storage.js';
 
 const STRINGS = {
   en: {
@@ -273,19 +274,18 @@ export function setLocale(loc) {
 export function detectLocale() {
   let source = '';
   let loc = '';
-  // 0) Explicit user choice from the in-panel language selector (our own localStorage key).
+  const ls = safeLocalStorage();
+  // 0) Explicit user choice from the in-panel language selector (our own key).
   try {
-    const saved = localStorage.getItem('purgecord:lang');
+    const saved = ls.getItem('purgecord:lang');
     if (saved === 'tr' || saved === 'en') {
       try { console.log(`[Purgecord] locale: ${saved} (user override)`); } catch { /* ignore */ }
       return saved;
     }
   } catch { /* ignore */ }
-  // 1) Discord account locale via a same-origin iframe (bypasses Discord's localStorage lock).
+  // 1) Discord account locale (localStorage.locale, read via the safe storage).
   try {
-    const iframe = document.body.appendChild(document.createElement('iframe'));
-    const raw = iframe.contentWindow.localStorage.locale;
-    iframe.remove();
+    const raw = ls.getItem('locale');
     if (raw) { loc = JSON.parse(raw); source = 'localStorage.locale'; }
   } catch { /* ignore */ }
   // 2) Fallback: <html lang> (Discord sets it to the account locale once booted).
