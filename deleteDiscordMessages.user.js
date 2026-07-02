@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/yashinu/purgecord
-// @version      0.3.0
+// @version      0.3.1
 // @description  Bulk delete Discord messages & DMs (based on undiscord, hardened)
 // @author       yashinu
 // @homepageURL  https://github.com/yashinu/purgecord
@@ -531,27 +531,31 @@
     return LOCALE;
   }
   function detectLocale() {
+    let source = "";
     let loc = "";
     try {
-      loc = document.documentElement.lang || "";
+      const iframe = document.body.appendChild(document.createElement("iframe"));
+      const raw = iframe.contentWindow.localStorage.locale;
+      iframe.remove();
+      if (raw) {
+        loc = JSON.parse(raw);
+        source = "localStorage.locale";
+      }
     } catch {
     }
     if (!loc) {
       try {
-        const iframe = document.body.appendChild(document.createElement("iframe"));
-        const raw = iframe.contentWindow.localStorage.locale;
-        iframe.remove();
-        loc = raw ? JSON.parse(raw) : "";
+        loc = document.documentElement.lang || "";
+        if (loc) source = "html[lang]";
       } catch {
       }
     }
-    if (!loc) {
-      try {
-        loc = navigator.language || "";
-      } catch {
-      }
+    const result = String(loc).toLowerCase().startsWith("tr") ? "tr" : "en";
+    try {
+      console.log(`[Purgecord] locale: "${loc}" (${source || "default"}) \u2192 ${result}`);
+    } catch {
     }
-    return String(loc).toLowerCase().startsWith("tr") ? "tr" : "en";
+    return result;
   }
   function t(key, params) {
     let s = STRINGS[LOCALE] && STRINGS[LOCALE][key] || STRINGS.en[key] || key;
@@ -1600,7 +1604,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.3.0";
+  var VERSION = "0.3.1";
   function boot() {
     if (window.__purgecord_loaded) return;
     window.__purgecord_loaded = true;

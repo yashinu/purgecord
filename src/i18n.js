@@ -264,20 +264,27 @@ export function setLocale(loc) {
   return LOCALE;
 }
 
-/** Detect the user's Discord language → 'tr' for Turkish, otherwise 'en'. */
+/**
+ * Detect the user's Discord ACCOUNT language → 'tr' for Turkish, otherwise 'en'.
+ * Reads Discord's own `localStorage.locale` (the account setting), NOT the browser
+ * language — the browser language would mis-detect (e.g. Turkish browser + English
+ * Discord). navigator.language is intentionally never used.
+ */
 export function detectLocale() {
+  let source = '';
   let loc = '';
-  try { loc = document.documentElement.lang || ''; } catch { /* ignore */ }
-  if (!loc) {
-    try {
-      const iframe = document.body.appendChild(document.createElement('iframe'));
-      const raw = iframe.contentWindow.localStorage.locale;
-      iframe.remove();
-      loc = raw ? JSON.parse(raw) : '';
-    } catch { /* ignore */ }
-  }
-  if (!loc) { try { loc = navigator.language || ''; } catch { /* ignore */ } }
-  return String(loc).toLowerCase().startsWith('tr') ? 'tr' : 'en';
+  // 1) Discord account locale via a same-origin iframe (bypasses Discord's localStorage lock).
+  try {
+    const iframe = document.body.appendChild(document.createElement('iframe'));
+    const raw = iframe.contentWindow.localStorage.locale;
+    iframe.remove();
+    if (raw) { loc = JSON.parse(raw); source = 'localStorage.locale'; }
+  } catch { /* ignore */ }
+  // 2) Fallback: <html lang> (Discord sets it to the account locale once booted).
+  if (!loc) { try { loc = document.documentElement.lang || ''; if (loc) source = 'html[lang]'; } catch { /* ignore */ } }
+  const result = String(loc).toLowerCase().startsWith('tr') ? 'tr' : 'en';
+  try { console.log(`[Purgecord] locale: "${loc}" (${source || 'default'}) → ${result}`); } catch { /* ignore */ }
+  return result;
 }
 
 /** Translate a key with optional {param} substitution. Falls back to English, then the key. */
