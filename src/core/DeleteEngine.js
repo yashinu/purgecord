@@ -48,7 +48,11 @@ export class DeleteEngine {
       this.state.before = job.before || undefined;
       this.onJobStart(job, this.state);
       try {
-        await this.runCursorJob(job, { dryRun });
+        if (job.guildId && job.guildId !== '@me' && !job.channelId) {
+          await this.runSearchJob(job, { dryRun });
+        } else {
+          await this.runCursorJob(job, { dryRun });
+        }
       } catch (err) {
         if (err?.name === 'AbortError') { this.log('warn', 'İptal edildi.'); break; }
         this.log('error', `Job hatası: ${err?.message || err}`);
@@ -111,6 +115,56 @@ export class DeleteEngine {
       });
 
       if (page.length < 100) break; // son (kısmi) sayfa işlendi → bitti
+      await this.wait(this.options.searchDelay);
+    }
+  }
+
+  /** Search stratejisi — sunucu-geneli (guildId, tek kanal yok). Boş sayfa doğrulamalı. */
+  async runSearchJob(job, { dryRun = false } = {}) {
+    let offset = 0;
+    let emptyStreak = 0;
+    while (this.state.running) {
+      const params = new URLSearchParams();
+      if (job.filters?.authorId) params.set('author_id', job.filters.authorId);
+      params.set('sort_by', 'timestamp');
+      params.set('sort_order', 'desc');
+      params.set('offset', String(offset));
+      const url = `${API_BASE}/guilds/${job.guildId}/messages/search?${params.toString()}`;
+
+      let resp;
+      try { resp = await this.api.request(url); }
+      catch (err) { if (err?.name === 'AbortError') throw err; this.log('error', `Arama hatası: ${err?.message || err}`); return; }
+
+      if (resp.status === 401 || resp.status === 403) { this.log('error', `Yetki hatası (${resp.status}).`); this.stop(); return; }
+      if (!resp.ok) { this.log('error', `Arama durumu ${resp.status}; job atlanıyor.`); return; }
+
+      const data = await resp.json();
+      const total = data.total_results || 0;
+      if (total > this.state.grandTotal) this.state.grandTotal = total;
+
+      const discovered = (data.messages || []).map((convo) => convo.find((m) => m.hit === true)).filter(Boolean);
+      const { toDelete, skipped } = filterMessages(discovered, job.filters || {});
+
+      if (discovered.length === 0) {
+        // Boş sayfa: total>0 ise geçici olabilir → birkaç kez doğrula, sonra bitir.
+        if (total > 0 && emptyStreak < 3) { emptyStreak++; this.log('verb', `Boş sayfa (${emptyStreak}/3) doğrulanıyor...`); await this.wait(this.options.searchDelay); continue; }
+        break; // gerçekten bitti
+      }
+      emptyStreak = 0;
+
+      if (dryRun) {
+        this.markProgress();
+      } else {
+        for (const msg of toDelete) {
+          if (!this.state.running) return;
+          const r = await this.deleteMessage(msg);
+          if (r === 'FAIL_SKIP') offset++; // arşivli: bir sonraki sayfada atla
+          this.markProgress();
+          await this.wait(this.options.deleteDelay);
+        }
+      }
+      offset += skipped.length; // silinenler listeden düşer; atlananlar offset ilerletir
+      this.saveCheckpoint({ job, offset, delCount: this.state.delCount, failCount: this.state.failCount, grandTotal: this.state.grandTotal });
       await this.wait(this.options.searchDelay);
     }
   }
