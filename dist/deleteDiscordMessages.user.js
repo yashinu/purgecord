@@ -451,7 +451,11 @@
         this.state.before = job.before || void 0;
         this.onJobStart(job, this.state);
         try {
-          await this.runCursorJob(job, { dryRun });
+          if (job.guildId && job.guildId !== "@me" && !job.channelId) {
+            await this.runSearchJob(job, { dryRun });
+          } else {
+            await this.runCursorJob(job, { dryRun });
+          }
         } catch (err) {
           if (err?.name === "AbortError") {
             this.log("warn", "\u0130ptal edildi.");
@@ -510,6 +514,65 @@
           grandTotal: this.state.grandTotal
         });
         if (page.length < 100) break;
+        await this.wait(this.options.searchDelay);
+      }
+    }
+    /** Search stratejisi — sunucu-geneli (guildId, tek kanal yok). Boş sayfa doğrulamalı. */
+    async runSearchJob(job, { dryRun = false } = {}) {
+      let offset = 0;
+      let emptyStreak = 0;
+      while (this.state.running) {
+        const params = new URLSearchParams();
+        if (job.filters?.authorId) params.set("author_id", job.filters.authorId);
+        params.set("sort_by", "timestamp");
+        params.set("sort_order", "desc");
+        params.set("offset", String(offset));
+        const url = `${API_BASE}/guilds/${job.guildId}/messages/search?${params.toString()}`;
+        let resp;
+        try {
+          resp = await this.api.request(url);
+        } catch (err) {
+          if (err?.name === "AbortError") throw err;
+          this.log("error", `Arama hatas\u0131: ${err?.message || err}`);
+          return;
+        }
+        if (resp.status === 401 || resp.status === 403) {
+          this.log("error", `Yetki hatas\u0131 (${resp.status}).`);
+          this.stop();
+          return;
+        }
+        if (!resp.ok) {
+          this.log("error", `Arama durumu ${resp.status}; job atlan\u0131yor.`);
+          return;
+        }
+        const data = await resp.json();
+        const total = data.total_results || 0;
+        if (total > this.state.grandTotal) this.state.grandTotal = total;
+        const discovered = (data.messages || []).map((convo) => convo.find((m) => m.hit === true)).filter(Boolean);
+        const { toDelete, skipped } = filterMessages(discovered, job.filters || {});
+        if (discovered.length === 0) {
+          if (total > 0 && emptyStreak < 3) {
+            emptyStreak++;
+            this.log("verb", `Bo\u015F sayfa (${emptyStreak}/3) do\u011Frulan\u0131yor...`);
+            await this.wait(this.options.searchDelay);
+            continue;
+          }
+          break;
+        }
+        emptyStreak = 0;
+        if (dryRun) {
+          this.markProgress();
+        } else {
+          for (const msg of toDelete) {
+            if (!this.state.running) return;
+            const r = await this.deleteMessage(msg);
+            if (r !== "OK") offset++;
+            this.markProgress();
+            await this.wait(this.options.deleteDelay);
+          }
+        }
+        offset += skipped.length;
+        this.saveCheckpoint({ job, offset, delCount: this.state.delCount, failCount: this.state.failCount, grandTotal: this.state.grandTotal });
         await this.wait(this.options.searchDelay);
       }
     }
