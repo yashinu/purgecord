@@ -27,7 +27,9 @@ Bulk-delete **your own** Discord messages — in a channel/server or across your
 1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/).
 2. Open the raw script and let your userscript manager install it:
    **https://raw.githubusercontent.com/yashinu/purgecord/main/deleteDiscordMessages.user.js**
-3. Open `discord.com` in the browser — a 🧹 icon appears in the top bar next to the inbox/help buttons.
+3. Open `discord.com` in the browser — a 🧹 icon appears in the top bar next to the inbox/help buttons:
+
+   ![Where the Purgecord icon appears in Discord's top navbar](assets/icon-location.png)
 
 **Option B — build from source:**
 ```bash
@@ -87,7 +89,9 @@ Discord'da **kendi** mesajlarını toplu sil — bir kanal/sunucuda veya tüm DM
 1. [Tampermonkey](https://www.tampermonkey.net/) veya [Violentmonkey](https://violentmonkey.github.io/) kur.
 2. Ham scripti aç, userscript yöneticine kurdur:
    **https://raw.githubusercontent.com/yashinu/purgecord/main/deleteDiscordMessages.user.js**
-3. `discord.com`'u tarayıcıda aç — üst çubukta inbox/help düğmelerinin yanında 🧹 ikonu belirir.
+3. `discord.com`'u tarayıcıda aç — üst çubukta inbox/help düğmelerinin yanında 🧹 ikonu belirir:
+
+   ![🧹 ikonunun Discord üst çubuğunda göründüğü yer](assets/icon-location.png)
 
 **Seçenek B — kaynaktan derle:**
 ```bash
