@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/local/purgecord
-// @version      0.2.0
+// @version      0.2.1
 // @description  Discord toplu mesaj & DM silici (undiscord temelli, sağlamlaştırılmış)
 // @author       local
 // @match        https://*.discord.com/*
@@ -1001,7 +1001,7 @@
     function mountBtn() {
       const mp = findMountPoint();
       if (mp && !mp.host.contains(btn)) {
-        if (mp.before) mp.host.insertBefore(btn, mp.before);
+        if (mp.before) mp.host.prepend(btn);
         else mp.host.append(btn);
       }
     }
@@ -1280,9 +1280,11 @@
   }
 
   // src/main.js
+  var VERSION = "0.2.1";
   function boot() {
     if (window.__purgecord_loaded) return;
     window.__purgecord_loaded = true;
+    console.log(`%c[Purgecord] v${VERSION} y\xFCklendi. webpack haz\u0131r: ${!!window.webpackChunkdiscord_app}`, "color:#5865f2;font-weight:bold");
     try {
       initUI();
     } catch (err) {

@@ -60,7 +60,7 @@ export function initUI() {
   function mountBtn() {
     const mp = findMountPoint();
     if (mp && !mp.host.contains(btn)) {
-      if (mp.before) mp.host.insertBefore(btn, mp.before); // help'in soluna (üst navbar)
+      if (mp.before) mp.host.prepend(btn); // help kümesinin başına → inbox'ın da soluna
       else mp.host.append(btn);
     }
   }
