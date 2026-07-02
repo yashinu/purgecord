@@ -635,7 +635,7 @@
 
   // src/core/Watchdog.js
   var Watchdog = class {
-    constructor({ getLastProgress, isRunning, onStall, stallMs = 9e4, now = () => Date.now(), setIntervalImpl = setInterval, clearIntervalImpl = clearInterval }) {
+    constructor({ getLastProgress, isRunning, onStall, stallMs = 9e4, now = () => Date.now(), setIntervalImpl = (fn, ms) => setInterval(fn, ms), clearIntervalImpl = (id) => clearInterval(id) }) {
       this.getLastProgress = getLastProgress;
       this.isRunning = isRunning;
       this.onStall = onStall;

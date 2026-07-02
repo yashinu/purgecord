@@ -1,5 +1,5 @@
 export class Watchdog {
-  constructor({ getLastProgress, isRunning, onStall, stallMs = 90000, now = () => Date.now(), setIntervalImpl = setInterval, clearIntervalImpl = clearInterval }) {
+  constructor({ getLastProgress, isRunning, onStall, stallMs = 90000, now = () => Date.now(), setIntervalImpl = (fn, ms) => setInterval(fn, ms), clearIntervalImpl = (id) => clearInterval(id) }) {
     this.getLastProgress = getLastProgress;
     this.isRunning = isRunning;
     this.onStall = onStall;
