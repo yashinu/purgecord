@@ -40,7 +40,7 @@ function cmpSnowDesc(a, b) {
 
 export async function listDms(api) {
   const resp = await api.request(`${API_BASE}/users/@me/channels`);
-  if (!resp.ok) throw new Error(`DM listesi alınamadı: ${resp.status}`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const channels = await resp.json();
   return channels
     .filter(c => c.type === CHANNEL_TYPE.DM || c.type === CHANNEL_TYPE.GROUP_DM)

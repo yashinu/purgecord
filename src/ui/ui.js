@@ -6,25 +6,26 @@ import { DeleteEngine } from '../core/DeleteEngine.js';
 import { Checkpoint } from '../core/Checkpoint.js';
 import { Watchdog } from '../core/Watchdog.js';
 import { getToken, getAuthorId, parseIdsFromUrl, looksLikeToken } from '../discord/token.js';
+import { t, detectLocale, setLocale } from '../i18n.js';
 import { initDmTab } from './dmTab.js';
 
-// ---- küçük yardımcılar ----
+// ---- small helpers ----
 function insertCss(css) {
   const s = document.createElement('style');
   s.textContent = css;
   document.head.appendChild(s);
 }
 function createEl(html) {
-  const t = document.createElement('div');
-  t.innerHTML = html.trim();
-  return t.firstElementChild;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html.trim();
+  return tmp.firstElementChild;
 }
-// Butonu koyacağımız yeri bulur: öncelik üst navbar'daki yardım (help) düğmesinin yanı.
+// Where to mount the trigger button: prefer next to the help button in the top navbar.
 function findMountPoint() {
-  // 1) Üst navbar: destek/yardım linki (inbox & help kümesi burada)
+  // 1) Top navbar: the support/help link (the inbox & help cluster lives here)
   const help = document.querySelector('#app-mount a[href*="support.discord.com"], #app-mount a[href*="//discord.com/help"]');
   if (help && help.parentElement) return { host: help.parentElement, before: help };
-  // 2) Yedek: en üstteki (en küçük top offset) görünür toolbar
+  // 2) Fallback: the topmost (smallest top offset) visible toolbar
   const bars = [...document.querySelectorAll('#app-mount [class*="toolbar_"]')].filter((b) => b.offsetParent !== null);
   if (bars.length) {
     bars.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
@@ -34,9 +35,12 @@ function findMountPoint() {
 }
 
 export function initUI() {
+  setLocale(detectLocale());
   insertCss(styles);
 
-  const panel = createEl(panelHtml);
+  // Fill {{key}} placeholders with localized strings, then build the panel.
+  const localized = panelHtml.replace(/\{\{(\w+)\}\}/g, (_, k) => t(k));
+  const panel = createEl(localized);
   document.body.appendChild(panel);
   const btn = createEl(buttonHtml);
 
@@ -50,13 +54,13 @@ export function initUI() {
     line.className = `pc-log-line pc-log-${type}`;
     line.textContent = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' ');
     logEl.appendChild(line);
-    // "Logu takip et" açıksa (varsayılan) son loga kaydır
+    // If "follow log" is on (default), scroll to the newest line.
     const scroller = logEl.closest('.pc-body');
     if (scroller && el('autoScroll')?.checked !== false) scroller.scrollTop = scroller.scrollHeight;
     if (type === 'error') console.error('[purgecord]', ...args);
   }
-  // Silinen mesajın bilgisini logla — createElement+textContent (XSS-güvenli).
-  // Yazar/içerik/ID .pc-priv ile sarılı → streamer modda bulanık (undiscord gibi).
+  // Log a deleted message's info — createElement+textContent (XSS-safe).
+  // Author/content/ID wrapped in .pc-priv → blurred in Streamer mode (like undiscord).
   function logMsgInfo(msg, r) {
     const time = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : '';
     const disc = (msg.author?.discriminator && msg.author.discriminator !== '0') ? '#' + msg.author.discriminator : '';
@@ -67,13 +71,13 @@ export function initUI() {
     const mk = (tag, cls, text) => {
       const e = document.createElement(tag);
       if (cls) e.className = cls;
-      e.textContent = text; // otomatik kaçış — HTML enjekte edilmez
+      e.textContent = text; // auto-escaped — no HTML injection
       return e;
     };
     const line = document.createElement('div');
     line.className = 'pc-log-line pc-log-debug';
     line.append(mk('sup', '', time), ' ', mk('b', 'pc-priv', author), ': ', mk('i', 'pc-priv', content));
-    if (msg.attachments && msg.attachments.length) line.append(' ', mk('span', 'pc-priv', `[${msg.attachments.length} ek]`));
+    if (msg.attachments && msg.attachments.length) line.append(' ', mk('span', 'pc-priv', `[${msg.attachments.length} file(s)]`));
     line.append(' ', mk('sup', 'pc-priv', `{ID:${msg.id}}`));
     if (status) line.append(status);
 
@@ -82,11 +86,11 @@ export function initUI() {
     if (scroller && el('autoScroll')?.checked !== false) scroller.scrollTop = scroller.scrollHeight;
   }
 
-  // --- buton mount + yeniden-mount ---
+  // --- button mount + re-mount ---
   function mountBtn() {
     const mp = findMountPoint();
     if (mp && !mp.host.contains(btn)) {
-      if (mp.before) mp.host.prepend(btn); // help kümesinin başına → inbox'ın da soluna
+      if (mp.before) mp.host.prepend(btn); // to the start of the help cluster → left of inbox
       else mp.host.append(btn);
     }
   }
@@ -106,20 +110,20 @@ export function initUI() {
   btn.addEventListener('click', () => togglePanel());
   on('close', () => togglePanel(false));
 
-  // --- drag / resize / sekmeler ---
+  // --- drag / resize / tabs ---
   makeDraggable(panel, panel.querySelector('[data-drag]'));
   makeResizable(panel, panel.querySelector('[data-resize]'));
 
   function switchTab(name) {
-    panel.querySelectorAll('.pc-tab').forEach((t) => t.classList.toggle('is-active', t.dataset.tab === name));
+    panel.querySelectorAll('.pc-tab').forEach((tab) => tab.classList.toggle('is-active', tab.dataset.tab === name));
     panel.querySelectorAll('.pc-view').forEach((v) => (v.hidden = v.dataset.view !== name));
   }
-  panel.querySelectorAll('.pc-tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+  panel.querySelectorAll('.pc-tab').forEach((tab) => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
 
-  // --- redact ---
+  // --- redact / streamer mode ---
   el('redact').addEventListener('change', (e) => panel.classList.toggle('pc-redact', e.target.checked));
 
-  // --- id/token doldurma ---
+  // --- fill id/token buttons ---
   on('fillAuthor', () => (el('authorId').value = getAuthorId()));
   on('fillGuild', () => {
     const { guildId, channelId } = parseIdsFromUrl();
@@ -132,12 +136,12 @@ export function initUI() {
     el('guildId').value = guildId || '';
   });
   on('fillToken', () => {
-    const t = (() => { try { return getToken(); } catch { return ''; } })();
-    if (looksLikeToken(t)) { el('token').value = t; log('success', `Token alındı (${t.length} karakter).`); }
-    else log('error', 'Token otomatik alınamadı. Elle yapıştır → F12 > Network sekmesi > discord.com/api\'ye giden herhangi bir isteğe tıkla > Request Headers > "authorization" satırındaki değeri kopyala.');
+    const tok = (() => { try { return getToken(); } catch { return ''; } })();
+    if (looksLikeToken(tok)) { el('token').value = tok; log('success', t('token_got', { n: tok.length })); }
+    else log('error', t('token_autofill_failed'));
   });
 
-  // --- gecikme slider'ları ---
+  // --- delay sliders ---
   const bindSlider = (input, valSpan) => {
     const sync = () => (valSpan.textContent = input.value);
     input.addEventListener('input', sync);
@@ -146,7 +150,7 @@ export function initUI() {
   bindSlider(el('deleteDelay'), el('deleteDelayVal'));
   bindSlider(el('searchDelay'), el('searchDelayVal'));
 
-  // --- çalışma zamanı durumu ---
+  // --- runtime state ---
   const checkpoint = new Checkpoint(localStorage);
   let engine = null;
   let watchdog = null;
@@ -160,7 +164,7 @@ export function initUI() {
       if (looksLikeToken(auto)) { token = auto; el('token').value = auto; }
     }
     if (!looksLikeToken(token)) {
-      log('error', 'Geçerli token yok. "doldur" işe yaramadıysa token\'ı elle yapıştır → F12 > Network > discord.com/api\'ye giden herhangi bir isteğe tıkla > Request Headers > "authorization" değerini kopyala.');
+      log('error', t('no_valid_token'));
       return { api: null, token: '' };
     }
     const api = new ApiClient({
@@ -170,8 +174,8 @@ export function initUI() {
       signal: abort.signal,
       onThrottle: ({ ms }) => {
         if (!engine) return;
-        engine.state.lastProgressTs = Date.now(); // aktif ama throttle'da — stall sayma
-        // Uyarlanabilir: her 429'da silme gecikmesini kademeli artır (sürdürülebilir hıza yakınsa), max 6s
+        engine.state.lastProgressTs = Date.now(); // active but throttled — don't count as a stall
+        // Adaptive: bump delete delay on each 429 (converge to a sustainable rate), max 6s
         const next = Math.min(6000, Math.max(engine.options.deleteDelay + 250, Math.round(ms || 0)));
         if (next > engine.options.deleteDelay) {
           engine.options.deleteDelay = next;
@@ -224,7 +228,7 @@ export function initUI() {
     watchdog = new Watchdog({
       getLastProgress: () => (engine ? engine.state.lastProgressTs : Date.now()),
       isRunning: () => !!(engine && engine.state.running),
-      onStall: () => log('warn', 'Uzun süredir ilerleme yok. Gerçekten takıldıysa Durdur\'a basıp paneldeki "Devam et" ile kaldığın yerden sürebilirsin.'),
+      onStall: () => log('warn', t('stall_hint')),
       stallMs: 90000,
     });
     watchdog.start();
@@ -248,12 +252,12 @@ export function initUI() {
       el('percent').textContent = `${val}/${s.grandTotal} (${pct}%)`;
     } else {
       bar.classList.add('is-indeterminate');
-      el('percent').textContent = `Silinen: ${s.delCount}`;
+      el('percent').textContent = t('deleted_n', { n: s.delCount });
     }
     if (ctx.onProgress) ctx.onProgress(s);
   }
 
-  // --- kanal silme akışı ---
+  // --- channel deletion flow ---
   async function runChannel({ dryRun }) {
     const guildId = el('guildId').value.trim();
     const channelIds = el('channelId').value.trim().split(/\s*,\s*/).filter(Boolean);
@@ -262,88 +266,88 @@ export function initUI() {
     let jobs, confirmMsg;
     if (channelIds.length) {
       jobs = channelIds.map((ch) => ({ channelId: ch, guildId, filters }));
-      confirmMsg = `${channelIds.length} kanal/DM'de filtreye uyan mesajların silinecek. Devam?`;
+      confirmMsg = t('confirm_channels', { n: channelIds.length });
     } else if (guildId && guildId !== '@me') {
-      // Sunucu-geneli silme (search stratejisi): kanal yok, guild var
-      if (!filters.authorId) return log('error', 'Sunucu-geneli silmede Author ID gerekli (yalnız kendi mesajların silinir).');
+      // Server-wide deletion (search strategy): no channel, guild set
+      if (!filters.authorId) return log('error', t('need_author_server'));
       jobs = [{ guildId, filters }];
-      confirmMsg = `Bu sunucudaki (${guildId}) kendi mesajların silinecek. Devam?`;
+      confirmMsg = t('confirm_server', { guildId });
     } else {
-      return log('error', 'Channel ID, veya sunucu-geneli silme için Server ID + Author ID gerekli.');
+      return log('error', t('need_channel_or_server'));
     }
 
-    log('verb', `${jobs.length} iş kuruldu (channelId=${channelIds.length ? 'var' : 'yok'}, guildId=${guildId || 'yok'}). Onay bekleniyor...`);
-    if (!dryRun && !window.confirm(confirmMsg)) { log('warn', 'İptal edildi (onay verilmedi).'); return; }
-    log('verb', 'Onaylandı. Token/motor hazırlanıyor...');
+    log('verb', t('jobs_built', { n: jobs.length, ch: channelIds.length, g: guildId || '@me' }));
+    if (!dryRun && !window.confirm(confirmMsg)) { log('warn', t('canceled_no_confirm')); return; }
+    log('verb', t('confirmed_prep'));
 
     const { api, token } = buildApi();
-    if (!token) return; // buildApi geçersiz token'da detaylı hata yazdı
-    log('verb', `Token alındı (${token.length} karakter). Motor kuruldu, silme başlıyor...`);
+    if (!token) return; // buildApi already logged a detailed error
+    log('verb', t('token_got_engine', { n: token.length }));
     makeEngine(api);
     startWatchdog();
 
     switchTab('log');
-    log('info', dryRun ? 'Dry-run başladı (silme yok).' : 'Silme başladı.');
-    // Progress paydası için tek seferlik toplam tahmini (read-only, best-effort; az sayıda iş için)
+    log('info', dryRun ? t('dryrun_started') : t('delete_started'));
+    // One-time read-only total estimate for the progress denominator (best-effort; few jobs only)
     const estimatedTotal = (!dryRun && jobs.length <= 10) ? await engine.estimateTotal(jobs) : 0;
-    if (estimatedTotal > 0) log('verb', `Tahmini toplam: ~${estimatedTotal} mesaj.`);
+    if (estimatedTotal > 0) log('verb', t('est_total', { n: estimatedTotal }));
     await engine.runQueue(jobs, { dryRun, estimatedTotal });
-    if (dryRun) log('success', `Dry-run bitti: ${engine.state.grandTotal} mesaj filtreye uyuyor.`);
-    else { log('success', `Bitti. Silinen: ${engine.state.delCount}, başarısız: ${engine.state.failCount}.`); checkpoint.clear(); }
+    if (dryRun) log('success', t('dryrun_done', { n: engine.state.grandTotal }));
+    else { log('success', t('done_summary', { del: engine.state.delCount, fail: engine.state.failCount })); checkpoint.clear(); }
   }
 
-  // --- start/dry/stop dispatch (aktif sekmeye göre) ---
+  // --- start/dry/stop dispatch (by active tab) ---
   function dispatch({ dryRun }) {
     const active = panel.querySelector('.pc-tab.is-active')?.dataset.tab;
-    switchTab('log'); // hatalar/ilerleme görünür olsun diye önce Log sekmesine geç
+    switchTab('log'); // switch to Log first so errors/progress are visible
     const run = active === 'dm' ? ctx.runDm : runChannel;
-    if (!run) return log('error', 'DM sekmesi hazır değil.');
-    // async hataları sessizce yutma — Log'a yaz:
+    if (!run) return log('error', t('dm_tab_not_ready'));
+    // Don't silently swallow async errors — write them to the Log:
     Promise.resolve().then(() => run({ dryRun })).catch((err) => {
-      log('error', `Beklenmeyen hata: ${err?.message || err}`);
+      log('error', t('unexpected_error', { err: err?.message || err }));
       console.error('[purgecord] dispatch error', err);
     });
   }
   on('start', () => dispatch({ dryRun: false }));
   on('dry', () => dispatch({ dryRun: true }));
-  on('stop', () => { engine?.stop(); abort?.abort(); log('warn', 'Durduruldu.'); });
+  on('stop', () => { engine?.stop(); abort?.abort(); log('warn', t('stopped')); });
 
   // --- resume banner ---
   const saved = checkpoint.load();
   if (saved && saved.job) {
     el('resumeBanner').hidden = false;
-    el('resumeText').textContent = `Yarım kalan iş var (${saved.delCount || 0} silindi). Devam edilsin mi?`;
+    el('resumeText').textContent = t('resume_text', { n: saved.delCount || 0 });
     on('resume', async () => {
       el('resumeBanner').hidden = true;
       const { api, token } = buildApi();
-      if (!token) return; // buildApi hata yazdı
+      if (!token) return; // buildApi logged the error
       makeEngine(api); startWatchdog();
       switchTab('log');
       await engine.runQueue([{ ...saved.job, before: saved.before }], { dryRun: false });
-      log('success', 'Devam eden iş bitti.'); checkpoint.clear();
+      log('success', t('resume_done')); checkpoint.clear();
     });
     on('discard', () => { el('resumeBanner').hidden = true; checkpoint.clear(); });
   }
 
-  // --- paylaşılan bağlam (Task 14 DM sekmesi kullanır) ---
+  // --- shared context (consumed by the DM tab) ---
   const ctx = {
     panel, el, log, buildApi, makeEngine, getFilters, startWatchdog,
     setRunningUI, renderProgress, switchTab, checkpoint,
     getEngine: () => engine,
     setEngine: (e) => { engine = e; },
-    runDm: null,       // Task 14 doldurur
-    onJobStart: null,  // Task 14 doldurur (focus kartı + DM log)
-    onJobDone: null,   // Task 14 doldurur (DM başı sonuç logu + DM kapatma)
-    onProgress: null,  // Task 14 doldurur (focus kartı ilerlemesi)
+    runDm: null,       // filled by initDmTab
+    onJobStart: null,  // filled by initDmTab (focus card + DM log)
+    onJobDone: null,   // filled by initDmTab (per-DM result log + DM close)
+    onProgress: null,  // filled by initDmTab (focus card progress)
   };
 
   try {
     initDmTab(ctx);
   } catch (err) {
-    console.error('[purgecord] initDmTab hatası:', err);
-    log('error', `DM sekmesi kurulamadı: ${err?.message || err}. Sayfayı yenileyip tekrar dene.`);
+    console.error('[purgecord] initDmTab error:', err);
+    log('error', t('dmtab_init_failed', { err: err?.message || err }));
   }
 
-  log('info', 'Purgecord hazır. Bir sekme seç ve başlat.');
+  log('info', t('ready'));
   return ctx;
 }

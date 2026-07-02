@@ -4,7 +4,7 @@ export class Checkpoint {
     this.key = key;
   }
   save(state) {
-    try { this.storage.setItem(this.key, JSON.stringify(state)); } catch { /* kota/erişim */ }
+    try { this.storage.setItem(this.key, JSON.stringify(state)); } catch { /* quota/access */ }
   }
   load() {
     try {

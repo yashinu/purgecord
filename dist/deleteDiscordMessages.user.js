@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/local/purgecord
-// @version      0.2.2
-// @description  Discord toplu mesaj & DM silici (undiscord temelli, sağlamlaştırılmış)
+// @version      0.3.0
+// @description  Bulk delete Discord messages & DMs (based on undiscord, hardened)
 // @author       local
 // @match        https://*.discord.com/*
 // @grant        none
@@ -92,7 +92,7 @@
 
   // src/ui/template.html.js
   var buttonHtml = `
-<div id="purgecord-btn" role="button" tabindex="0" aria-label="Purgecord" title="Purgecord \u2014 toplu mesaj/DM sil">
+<div id="purgecord-btn" role="button" tabindex="0" aria-label="Purgecord" title="Purgecord \u2014 bulk message/DM deleter">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M15 16h4v2h-4zM15 8h7v2h-7zM15 12h6v2h-6zM3 18c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V8H3v10zM14 5h-3l-1-1H6L5 5H2v2h12z"></path>
   </svg>
@@ -101,91 +101,91 @@
 <div id="purgecord" class="pc-panel pc-redact" hidden>
   <header class="pc-header" data-drag>
     <span class="pc-logo">\u{1F9F9} Purgecord</span>
-    <span class="pc-sub">Toplu mesaj & DM silici</span>
+    <span class="pc-sub">{{subtitle}}</span>
     <span class="pc-spacer"></span>
-    <label class="pc-check" title="Ekran payla\u015F\u0131m\u0131 i\xE7in gizle"><input type="checkbox" data-el="redact" checked> Streamer</label>
-    <button class="pc-icon-btn" data-action="close" title="Kapat">\u2715</button>
+    <label class="pc-check"><input type="checkbox" data-el="redact" checked> {{streamer}}</label>
+    <button class="pc-icon-btn" data-action="close" title="{{close}}">\u2715</button>
   </header>
 
   <div class="pc-banner" data-el="resumeBanner" hidden>
     <span data-el="resumeText"></span>
     <span class="pc-spacer"></span>
-    <button class="pc-btn pc-small" data-action="resume">Devam et</button>
-    <button class="pc-btn pc-small" data-action="discard">Vazge\xE7</button>
+    <button class="pc-btn pc-small" data-action="resume">{{resume}}</button>
+    <button class="pc-btn pc-small" data-action="discard">{{discard}}</button>
   </div>
 
   <nav class="pc-tabs">
-    <button class="pc-tab is-active" data-tab="channel">Kanal / Sunucu</button>
-    <button class="pc-tab" data-tab="dm">Toplu DM</button>
-    <button class="pc-tab" data-tab="log">Log</button>
+    <button class="pc-tab is-active" data-tab="channel">{{tab_channel}}</button>
+    <button class="pc-tab" data-tab="dm">{{tab_dm}}</button>
+    <button class="pc-tab" data-tab="log">{{tab_log}}</button>
   </nav>
 
   <div class="pc-body">
     <section class="pc-view" data-view="channel">
-      <div class="pc-field"><label>Author ID</label>
-        <div class="pc-row"><input class="pc-input pc-priv" data-el="authorId" type="text" placeholder="Silinecek mesajlar\u0131n yazar\u0131">
-        <button class="pc-btn pc-small" data-action="fillAuthor">ben</button></div></div>
-      <div class="pc-field"><label>Server ID</label>
-        <div class="pc-row"><input class="pc-input pc-priv" data-el="guildId" type="text" placeholder="@me = DM">
-        <button class="pc-btn pc-small" data-action="fillGuild">mevcut</button></div></div>
-      <div class="pc-field"><label>Channel ID</label>
-        <div class="pc-row"><input class="pc-input pc-priv" data-el="channelId" type="text" placeholder="Kanal/DM id (virg\xFClle \xE7oklu)">
-        <button class="pc-btn pc-small" data-action="fillChannel">mevcut</button></div></div>
+      <div class="pc-field"><label>{{author_id}}</label>
+        <div class="pc-row"><input class="pc-input pc-priv" data-el="authorId" type="text" placeholder="{{author_ph}}">
+        <button class="pc-btn pc-small" data-action="fillAuthor">{{btn_me}}</button></div></div>
+      <div class="pc-field"><label>{{server_id}}</label>
+        <div class="pc-row"><input class="pc-input pc-priv" data-el="guildId" type="text" placeholder="{{server_ph}}">
+        <button class="pc-btn pc-small" data-action="fillGuild">{{btn_current}}</button></div></div>
+      <div class="pc-field"><label>{{channel_id}}</label>
+        <div class="pc-row"><input class="pc-input pc-priv" data-el="channelId" type="text" placeholder="{{channel_ph}}">
+        <button class="pc-btn pc-small" data-action="fillChannel">{{btn_current}}</button></div></div>
 
-      <details class="pc-details"><summary>Filtreler</summary>
-        <div class="pc-field" style="margin-top:10px"><label>\u0130\xE7erik</label>
-          <input class="pc-input pc-priv" data-el="content" type="text" placeholder="Bu metni i\xE7erenler"></div>
-        <label class="pc-check"><input type="checkbox" data-el="hasLink"> Link i\xE7eren</label>
-        <label class="pc-check"><input type="checkbox" data-el="hasFile"> Dosya i\xE7eren</label>
-        <label class="pc-check"><input type="checkbox" data-el="includePinned"> Sabitlenmi\u015Fleri de sil</label>
-        <div class="pc-field" style="margin-top:10px"><label>Regex</label>
-          <input class="pc-input pc-priv" data-el="pattern" type="text" placeholder="d\xFCzenli ifade (i)"></div>
+      <details class="pc-details"><summary>{{filters}}</summary>
+        <div class="pc-field" style="margin-top:10px"><label>{{content}}</label>
+          <input class="pc-input pc-priv" data-el="content" type="text" placeholder="{{content_ph}}"></div>
+        <label class="pc-check"><input type="checkbox" data-el="hasLink"> {{has_link}}</label>
+        <label class="pc-check"><input type="checkbox" data-el="hasFile"> {{has_file}}</label>
+        <label class="pc-check"><input type="checkbox" data-el="includePinned"> {{include_pinned}}</label>
+        <div class="pc-field" style="margin-top:10px"><label>{{regex}}</label>
+          <input class="pc-input pc-priv" data-el="pattern" type="text" placeholder="{{regex_ph}}"></div>
       </details>
 
-      <details class="pc-details"><summary>Tarih / mesaj aral\u0131\u011F\u0131</summary>
-        <div class="pc-field" style="margin-top:10px"><label>Sonras\u0131 (After)</label>
+      <details class="pc-details"><summary>{{date_range}}</summary>
+        <div class="pc-field" style="margin-top:10px"><label>{{after}}</label>
           <input class="pc-input" data-el="minDate" type="datetime-local"></div>
-        <div class="pc-field"><label>\xD6ncesi (Before)</label>
+        <div class="pc-field"><label>{{before}}</label>
           <input class="pc-input" data-el="maxDate" type="datetime-local"></div>
-        <div class="pc-field"><label>min ID / max ID</label>
-          <div class="pc-row"><input class="pc-input pc-priv" data-el="minId" type="text" placeholder="min id">
-          <input class="pc-input pc-priv" data-el="maxId" type="text" placeholder="max id"></div></div>
+        <div class="pc-field"><label>{{id_range}}</label>
+          <div class="pc-row"><input class="pc-input pc-priv" data-el="minId" type="text" placeholder="{{min_id}}">
+          <input class="pc-input pc-priv" data-el="maxId" type="text" placeholder="{{max_id}}"></div></div>
       </details>
 
-      <details class="pc-details"><summary>Geli\u015Fmi\u015F</summary>
-        <div class="pc-field" style="margin-top:10px"><label>Silme gecikmesi: <span data-el="deleteDelayVal">1250</span>ms</label>
+      <details class="pc-details"><summary>{{advanced}}</summary>
+        <div class="pc-field" style="margin-top:10px"><label>{{delete_delay}} <span data-el="deleteDelayVal">1250</span>ms</label>
           <input data-el="deleteDelay" type="range" min="500" max="10000" step="50" value="1250" style="width:100%"></div>
-        <div class="pc-field"><label>Sayfa gecikmesi: <span data-el="searchDelayVal">1000</span>ms</label>
+        <div class="pc-field"><label>{{page_delay}} <span data-el="searchDelayVal">1000</span>ms</label>
           <input data-el="searchDelay" type="range" min="0" max="10000" step="50" value="1000" style="width:100%"></div>
-        <div class="pc-field"><label>Token</label>
-          <div class="pc-row"><input class="pc-input" data-el="token" type="password" autocomplete="off" placeholder="otomatik doldurulur">
-          <button class="pc-btn pc-small" data-action="fillToken">doldur</button></div></div>
+        <div class="pc-field"><label>{{token}}</label>
+          <div class="pc-row"><input class="pc-input" data-el="token" type="password" autocomplete="off" placeholder="{{token_ph}}">
+          <button class="pc-btn pc-small" data-action="fillToken">{{btn_fill}}</button></div></div>
       </details>
     </section>
 
     <section class="pc-view" data-view="dm" hidden>
       <div class="pc-dm-toolbar">
-        <button class="pc-btn pc-small" data-action="loadDms">DM'leri y\xFCkle</button>
-        <input class="pc-input pc-priv" data-el="dmSearch" type="search" placeholder="Ara..." style="max-width:180px">
-        <span class="pc-dm-count" data-el="dmCount">0 se\xE7ili</span>
+        <button class="pc-btn pc-small" data-action="loadDms">{{load_dms}}</button>
+        <input class="pc-input pc-priv" data-el="dmSearch" type="search" placeholder="{{search_ph}}" style="max-width:180px">
+        <span class="pc-dm-count" data-el="dmCount"></span>
       </div>
       <div class="pc-dm-modes">
-        <label class="pc-check"><input type="radio" name="pc-dm-mode" value="only" checked> Sadece se\xE7ilenleri sil</label>
-        <label class="pc-check"><input type="radio" name="pc-dm-mode" value="except"> Se\xE7ilenler hari\xE7 hepsini sil</label>
+        <label class="pc-check"><input type="radio" name="pc-dm-mode" value="only" checked> {{mode_only}}</label>
+        <label class="pc-check"><input type="radio" name="pc-dm-mode" value="except"> {{mode_except}}</label>
       </div>
       <div class="pc-dm-modes" style="margin:6px 0">
-        <label class="pc-check"><input type="checkbox" data-el="dmSelectAll"> T\xFCm\xFCn\xFC se\xE7</label>
-        <label class="pc-check"><input type="checkbox" data-el="followDm"> DM'i Discord'da takip et</label>
-        <label class="pc-check"><input type="checkbox" data-el="closeDm"> Temizlenen DM'i kapat</label>
+        <label class="pc-check"><input type="checkbox" data-el="dmSelectAll"> {{select_all}}</label>
+        <label class="pc-check"><input type="checkbox" data-el="followDm"> {{follow_dm}}</label>
+        <label class="pc-check"><input type="checkbox" data-el="closeDm"> {{close_dm}}</label>
       </div>
-      <div class="pc-hint">DM modunda yaln\u0131z <b>kendi</b> mesajlar\u0131n silinir. Kanal sekmesindeki filtreler burada da uygulan\u0131r.</div>
+      <div class="pc-hint">{{dm_hint}}</div>
       <div class="pc-dm-list" data-el="dmList"></div>
     </section>
 
     <section class="pc-view" data-view="log" hidden>
-      <label class="pc-check"><input type="checkbox" data-el="autoScroll" checked> Logu takip et (son loga kayd\u0131r)</label>
-      <label class="pc-check"><input type="checkbox" data-el="logMsgInfo"> Silinen mesaj bilgilerini logla (i\xE7erik dahil \u2014 Streamer modda gizli)</label>
-      <div class="pc-hint" style="margin-bottom:8px">\u0130lk y\xFCklemeden hemen sonra \xE7al\u0131\u015Fmazsa 1-2 sn bekleyip tekrar dene (Discord/webpack hen\xFCz haz\u0131r olmayabilir).</div>
+      <label class="pc-check"><input type="checkbox" data-el="autoScroll" checked> {{follow_log}}</label>
+      <label class="pc-check"><input type="checkbox" data-el="logMsgInfo"> {{log_msg_info}}</label>
+      <div class="pc-hint" style="margin-bottom:8px">{{first_run_hint}}</div>
       <pre id="pc-log"></pre>
     </section>
   </div>
@@ -197,9 +197,9 @@
   </div>
 
   <footer class="pc-footer">
-    <button class="pc-btn pc-danger" data-action="start">\u25B6 Sil</button>
-    <button class="pc-btn" data-action="dry">Sadece say</button>
-    <button class="pc-btn" data-action="stop" disabled>\u23F8 Durdur</button>
+    <button class="pc-btn pc-danger" data-action="start">{{btn_delete}}</button>
+    <button class="pc-btn" data-action="dry">{{btn_count}}</button>
+    <button class="pc-btn" data-action="stop" disabled>{{btn_stop}}</button>
     <div class="pc-progress"><div class="pc-progress-bar" data-el="progressBar"></div></div>
     <span class="pc-percent" data-el="percent"></span>
   </footer>
@@ -212,9 +212,9 @@
   function makeDraggable(panel, handle) {
     let sx, sy, st, sl;
     const onMove = (e) => {
-      const t = clamp(st + (e.clientY - sy), 0, window.innerHeight - 40);
+      const t2 = clamp(st + (e.clientY - sy), 0, window.innerHeight - 40);
       const l = clamp(sl + (e.clientX - sx), -panel.offsetWidth + 80, window.innerWidth - 80);
-      panel.style.top = t + "px";
+      panel.style.top = t2 + "px";
       panel.style.left = l + "px";
       panel.style.right = "auto";
     };
@@ -275,6 +275,286 @@
     return clamp2(ms, o.minDelay, o.maxDelay);
   }
 
+  // src/i18n.js
+  var STRINGS = {
+    en: {
+      // --- header / tabs ---
+      subtitle: "Bulk message & DM deleter",
+      streamer: "Streamer",
+      close: "Close",
+      tab_channel: "Channel / Server",
+      tab_dm: "Bulk DM",
+      tab_log: "Log",
+      // --- channel view ---
+      author_id: "Author ID",
+      author_ph: "Author of the messages to delete",
+      btn_me: "me",
+      server_id: "Server ID",
+      server_ph: "@me = DM",
+      btn_current: "current",
+      channel_id: "Channel ID",
+      channel_ph: "Channel/DM id (comma-separated)",
+      filters: "Filters",
+      content: "Content",
+      content_ph: "Messages containing this text",
+      has_link: "Has link",
+      has_file: "Has file",
+      include_pinned: "Delete pinned too",
+      regex: "Regex",
+      regex_ph: "regular expression (i)",
+      date_range: "Date / message range",
+      after: "After",
+      before: "Before",
+      id_range: "min ID / max ID",
+      min_id: "min id",
+      max_id: "max id",
+      advanced: "Advanced",
+      delete_delay: "Delete delay:",
+      page_delay: "Page delay:",
+      token: "Token",
+      token_ph: "auto-filled",
+      btn_fill: "fill",
+      // --- DM view ---
+      load_dms: "Load DMs",
+      search_ph: "Search...",
+      dm_count: "{sel} selected / {total}",
+      mode_only: "Delete only selected",
+      mode_except: "Delete all except selected",
+      select_all: "Select all",
+      follow_dm: "Follow DM in Discord",
+      close_dm: "Close cleaned DM",
+      badge_group: "Group",
+      badge_dm: "DM",
+      dm_hint: "In DM mode only your own messages are deleted. Channel-tab filters apply here too.",
+      // --- log view ---
+      follow_log: "Follow log (scroll to newest)",
+      log_msg_info: "Log deleted message info (incl. content \u2014 hidden in Streamer mode)",
+      first_run_hint: "If it doesn't work right after loading, wait 1-2s and try again (Discord/webpack may not be ready yet).",
+      // --- resume banner ---
+      resume: "Resume",
+      discard: "Discard",
+      resume_text: "Unfinished job found ({n} deleted). Resume?",
+      // --- footer ---
+      btn_delete: "\u25B6 Delete",
+      btn_count: "Count only",
+      btn_stop: "\u23F8 Stop",
+      // --- focus card ---
+      dash: "\u2014",
+      starting: "starting...",
+      deleted_n: "deleted: {n}",
+      // --- runtime / logs (ui.js) ---
+      ready: "Purgecord ready. Pick a tab and start.",
+      dmtab_init_failed: "DM tab could not initialize: {err}. Refresh the page and try again.",
+      need_author_server: "Author ID is required for server-wide deletion (only your own messages are deleted).",
+      need_channel_or_server: "Channel ID, or Server ID + Author ID for server-wide deletion, is required.",
+      confirm_channels: "Messages matching the filter in {n} channel(s)/DM(s) will be deleted. Continue?",
+      confirm_server: "Your own messages in this server ({guildId}) will be deleted. Continue?",
+      jobs_built: "{n} job(s) built (channelId={ch}, guildId={g}). Waiting for confirmation...",
+      canceled_no_confirm: "Canceled (not confirmed).",
+      confirmed_prep: "Confirmed. Preparing token/engine...",
+      token_got_engine: "Token obtained ({n} chars). Engine ready, starting deletion...",
+      dryrun_started: "Dry-run started (no deletion).",
+      delete_started: "Deletion started.",
+      est_total: "Estimated total: ~{n} messages.",
+      dryrun_done: "Dry-run done: {n} messages match the filter.",
+      done_summary: "Done. Deleted: {del}, failed: {fail}.",
+      unexpected_error: "Unexpected error: {err}",
+      dm_tab_not_ready: "DM tab is not ready.",
+      stopped: "Stopped.",
+      no_valid_token: 'No valid token. If "fill" did not work, paste it manually \u2192 F12 > Network > click any request to discord.com/api > Request Headers > copy the "authorization" value.',
+      token_got: "Token obtained ({n} chars).",
+      token_autofill_failed: 'Could not auto-fill token. Paste manually \u2192 F12 > Network tab > click any request to discord.com/api > Request Headers > copy the value on the "authorization" line.',
+      resume_done: "Resumed job finished.",
+      stall_hint: 'No progress for a while. If it is truly stuck, press Stop and use "Resume" in the panel to continue where you left off.',
+      // --- dmTab ---
+      self_id_missing: 'Could not get your own id; the "only my messages" filter may be weak.',
+      loading_dms: "Loading DM list...",
+      dms_found: "{n} DM(s)/group(s) found.",
+      dms_failed: "Could not load DM list: {err}",
+      no_target_dm: "No target DM (empty by selection/mode).",
+      dm_jobs_built: "{n} DM job(s) built. Waiting for confirmation...",
+      confirm_dms: "Your own messages in {n} DM(s) will be deleted. Continue?",
+      canceled: "Canceled.",
+      dms_processing: "{n} DM(s) to process ({mode}).",
+      mode_dryrun: "dry-run",
+      mode_delete: "delete",
+      dm_start: "\u25B6 DM: {name}{extra}",
+      dm_extra_est: " (~{n} messages)",
+      dm_done: "\u2713 {name}: {count} deleted.",
+      dryrun_total: "Dry-run: {n} messages total match the filter.",
+      dm_all_done: "Bulk DM done. Deleted: {del}, failed: {fail}.",
+      dm_error: "Bulk DM error: {err}",
+      // --- engine ---
+      canceled_short: "Canceled.",
+      job_error: "Job error: {err}",
+      auth_error: "Auth error ({status}). Token may be invalid.",
+      unexpected_status: "Unexpected status {status}; skipping this job.",
+      page_fetch_failed: "Could not fetch page: {err}",
+      delete_error: "Delete error {status} (id {id}).",
+      dm_still_has_msgs: "{label}: still has messages matching the filter, DM not closed.",
+      dm_closed: "{label}: clean \u2014 DM closed.",
+      dm_close_failed: "{label}: could not close DM (status {status}).",
+      search_error: "Search error: {err}",
+      search_status: "Search status {status}; skipping job.",
+      empty_verify: "Empty page ({n}/3) verifying...",
+      // --- ApiClient ---
+      net_error_retry: "Network error; retrying in {ms}ms (attempt {n}).",
+      throttle_wait: "{kind}; waiting {ms}ms...",
+      server_error_retry: "Server error {status}; retrying in {ms}ms...",
+      indexing: "Indexing",
+      rate_limit: "Rate limit"
+    },
+    tr: {
+      subtitle: "Toplu mesaj & DM silici",
+      streamer: "Streamer",
+      close: "Kapat",
+      tab_channel: "Kanal / Sunucu",
+      tab_dm: "Toplu DM",
+      tab_log: "Log",
+      author_id: "Author ID",
+      author_ph: "Silinecek mesajlar\u0131n yazar\u0131",
+      btn_me: "ben",
+      server_id: "Server ID",
+      server_ph: "@me = DM",
+      btn_current: "mevcut",
+      channel_id: "Channel ID",
+      channel_ph: "Kanal/DM id (virg\xFClle \xE7oklu)",
+      filters: "Filtreler",
+      content: "\u0130\xE7erik",
+      content_ph: "Bu metni i\xE7erenler",
+      has_link: "Link i\xE7eren",
+      has_file: "Dosya i\xE7eren",
+      include_pinned: "Sabitlenmi\u015Fleri de sil",
+      regex: "Regex",
+      regex_ph: "d\xFCzenli ifade (i)",
+      date_range: "Tarih / mesaj aral\u0131\u011F\u0131",
+      after: "Sonras\u0131 (After)",
+      before: "\xD6ncesi (Before)",
+      id_range: "min ID / max ID",
+      min_id: "min id",
+      max_id: "max id",
+      advanced: "Geli\u015Fmi\u015F",
+      delete_delay: "Silme gecikmesi:",
+      page_delay: "Sayfa gecikmesi:",
+      token: "Token",
+      token_ph: "otomatik doldurulur",
+      btn_fill: "doldur",
+      load_dms: "DM'leri y\xFCkle",
+      search_ph: "Ara...",
+      dm_count: "{sel} se\xE7ili / {total}",
+      mode_only: "Sadece se\xE7ilenleri sil",
+      mode_except: "Se\xE7ilenler hari\xE7 hepsini sil",
+      select_all: "T\xFCm\xFCn\xFC se\xE7",
+      follow_dm: "DM'i Discord'da takip et",
+      close_dm: "Temizlenen DM'i kapat",
+      badge_group: "Grup",
+      badge_dm: "DM",
+      dm_hint: "DM modunda yaln\u0131z kendi mesajlar\u0131n silinir. Kanal sekmesindeki filtreler burada da uygulan\u0131r.",
+      follow_log: "Logu takip et (son loga kayd\u0131r)",
+      log_msg_info: "Silinen mesaj bilgilerini logla (i\xE7erik dahil \u2014 Streamer modda gizli)",
+      first_run_hint: "\u0130lk y\xFCklemeden hemen sonra \xE7al\u0131\u015Fmazsa 1-2 sn bekleyip tekrar dene (Discord/webpack hen\xFCz haz\u0131r olmayabilir).",
+      resume: "Devam et",
+      discard: "Vazge\xE7",
+      resume_text: "Yar\u0131m kalan i\u015F var ({n} silindi). Devam edilsin mi?",
+      btn_delete: "\u25B6 Sil",
+      btn_count: "Sadece say",
+      btn_stop: "\u23F8 Durdur",
+      dash: "\u2014",
+      starting: "ba\u015Fl\u0131yor...",
+      deleted_n: "silinen: {n}",
+      ready: "Purgecord haz\u0131r. Bir sekme se\xE7 ve ba\u015Flat.",
+      dmtab_init_failed: "DM sekmesi kurulamad\u0131: {err}. Sayfay\u0131 yenileyip tekrar dene.",
+      need_author_server: "Sunucu-geneli silmede Author ID gerekli (yaln\u0131z kendi mesajlar\u0131n silinir).",
+      need_channel_or_server: "Channel ID, veya sunucu-geneli silme i\xE7in Server ID + Author ID gerekli.",
+      confirm_channels: "{n} kanal/DM'de filtreye uyan mesajlar\u0131n silinecek. Devam?",
+      confirm_server: "Bu sunucudaki ({guildId}) kendi mesajlar\u0131n silinecek. Devam?",
+      jobs_built: "{n} i\u015F kuruldu (channelId={ch}, guildId={g}). Onay bekleniyor...",
+      canceled_no_confirm: "\u0130ptal edildi (onay verilmedi).",
+      confirmed_prep: "Onayland\u0131. Token/motor haz\u0131rlan\u0131yor...",
+      token_got_engine: "Token al\u0131nd\u0131 ({n} karakter). Motor kuruldu, silme ba\u015Fl\u0131yor...",
+      dryrun_started: "Dry-run ba\u015Flad\u0131 (silme yok).",
+      delete_started: "Silme ba\u015Flad\u0131.",
+      est_total: "Tahmini toplam: ~{n} mesaj.",
+      dryrun_done: "Dry-run bitti: {n} mesaj filtreye uyuyor.",
+      done_summary: "Bitti. Silinen: {del}, ba\u015Far\u0131s\u0131z: {fail}.",
+      unexpected_error: "Beklenmeyen hata: {err}",
+      dm_tab_not_ready: "DM sekmesi haz\u0131r de\u011Fil.",
+      stopped: "Durduruldu.",
+      no_valid_token: `Ge\xE7erli token yok. "doldur" i\u015Fe yaramad\u0131ysa token'\u0131 elle yap\u0131\u015Ft\u0131r \u2192 F12 > Network > discord.com/api'ye giden herhangi bir iste\u011Fe t\u0131kla > Request Headers > "authorization" de\u011Ferini kopyala.`,
+      token_got: "Token al\u0131nd\u0131 ({n} karakter).",
+      token_autofill_failed: `Token otomatik al\u0131namad\u0131. Elle yap\u0131\u015Ft\u0131r \u2192 F12 > Network sekmesi > discord.com/api'ye giden herhangi bir iste\u011Fe t\u0131kla > Request Headers > "authorization" sat\u0131r\u0131ndaki de\u011Feri kopyala.`,
+      resume_done: "Devam eden i\u015F bitti.",
+      stall_hint: `Uzun s\xFCredir ilerleme yok. Ger\xE7ekten tak\u0131ld\u0131ysa Durdur'a bas\u0131p paneldeki "Devam et" ile kald\u0131\u011F\u0131n yerden s\xFCrebilirsin.`,
+      self_id_missing: "Kendi id'niz al\u0131namad\u0131; yaln\u0131z kendi mesajlar filtresi zay\u0131f olabilir.",
+      loading_dms: "DM listesi y\xFCkleniyor...",
+      dms_found: "{n} DM/grup bulundu.",
+      dms_failed: "DM listesi al\u0131namad\u0131: {err}",
+      no_target_dm: "Hedef DM yok (se\xE7im/moda g\xF6re bo\u015F).",
+      dm_jobs_built: "{n} DM i\u015Fi kuruldu. Onay bekleniyor...",
+      confirm_dms: "{n} DM'de kendi mesajlar\u0131n silinecek. Devam?",
+      canceled: "\u0130ptal edildi.",
+      dms_processing: "{n} DM i\u015Flenecek ({mode}).",
+      mode_dryrun: "dry-run",
+      mode_delete: "silme",
+      dm_start: "\u25B6 DM: {name}{extra}",
+      dm_extra_est: " (~{n} mesaj)",
+      dm_done: "\u2713 {name}: {count} silindi.",
+      dryrun_total: "Dry-run: toplam {n} mesaj filtreye uyuyor.",
+      dm_all_done: "Toplu DM bitti. Silinen: {del}, ba\u015Far\u0131s\u0131z: {fail}.",
+      dm_error: "Toplu DM hatas\u0131: {err}",
+      canceled_short: "\u0130ptal edildi.",
+      job_error: "Job hatas\u0131: {err}",
+      auth_error: "Yetki hatas\u0131 ({status}). Token ge\xE7ersiz olabilir.",
+      unexpected_status: "Beklenmeyen durum {status}; bu job atlan\u0131yor.",
+      page_fetch_failed: "Sayfa \xE7ekilemedi: {err}",
+      delete_error: "Silme hatas\u0131 {status} (id {id}).",
+      dm_still_has_msgs: "{label}: h\xE2l\xE2 filtreye uyan mesaj var, DM kapat\u0131lmad\u0131.",
+      dm_closed: "{label}: temiz \u2014 DM kapat\u0131ld\u0131.",
+      dm_close_failed: "{label}: DM kapat\u0131lamad\u0131 (durum {status}).",
+      search_error: "Arama hatas\u0131: {err}",
+      search_status: "Arama durumu {status}; job atlan\u0131yor.",
+      empty_verify: "Bo\u015F sayfa ({n}/3) do\u011Frulan\u0131yor...",
+      net_error_retry: "A\u011F hatas\u0131; {ms}ms sonra tekrar (deneme {n}).",
+      throttle_wait: "{kind}; {ms}ms bekleniyor...",
+      server_error_retry: "Sunucu hatas\u0131 {status}; {ms}ms sonra tekrar...",
+      indexing: "\u0130ndeksleniyor",
+      rate_limit: "Rate limit"
+    }
+  };
+  var LOCALE = "en";
+  function setLocale(loc) {
+    LOCALE = STRINGS[loc] ? loc : "en";
+    return LOCALE;
+  }
+  function detectLocale() {
+    let loc = "";
+    try {
+      loc = document.documentElement.lang || "";
+    } catch {
+    }
+    if (!loc) {
+      try {
+        const iframe = document.body.appendChild(document.createElement("iframe"));
+        const raw = iframe.contentWindow.localStorage.locale;
+        iframe.remove();
+        loc = raw ? JSON.parse(raw) : "";
+      } catch {
+      }
+    }
+    if (!loc) {
+      try {
+        loc = navigator.language || "";
+      } catch {
+      }
+    }
+    return String(loc).toLowerCase().startsWith("tr") ? "tr" : "en";
+  }
+  function t(key, params) {
+    let s = STRINGS[LOCALE] && STRINGS[LOCALE][key] || STRINGS.en[key] || key;
+    if (params) s = s.replace(/\{(\w+)\}/g, (_, k) => params[k] !== void 0 ? params[k] : `{${k}}`);
+    return s;
+  }
+
   // src/core/ApiClient.js
   var AbortError = class extends Error {
     constructor() {
@@ -324,7 +604,7 @@
           if (this.signal?.aborted) throw new AbortError();
           if (noRetry || attempt >= maxRetries) throw err;
           const ms = computeBackoff({ status: 0, attempt }, this.backoffOpts);
-          this.log("warn", `A\u011F hatas\u0131; ${ms}ms sonra tekrar (deneme ${attempt + 1}).`);
+          this.log("warn", t("net_error_retry", { ms, n: attempt + 1 }));
           await this.wait(ms);
           continue;
         }
@@ -337,14 +617,14 @@
           this.stats.throttledCount++;
           this.stats.throttledTotalTime += ms;
           this.onThrottle({ ms, status: resp.status, global: globalLimited });
-          this.log("verb", `${resp.status === 202 ? "\u0130ndeksleniyor" : "Rate limit"}; ${ms}ms bekleniyor...`);
+          this.log("verb", t("throttle_wait", { kind: resp.status === 202 ? t("indexing") : t("rate_limit"), ms }));
           await this.wait(ms);
           continue;
         }
         if (resp.status >= 500) {
           if (attempt >= maxRetries) return resp;
           const ms = computeBackoff({ status: resp.status, attempt }, this.backoffOpts);
-          this.log("warn", `Sunucu hatas\u0131 ${resp.status}; ${ms}ms sonra tekrar...`);
+          this.log("warn", t("server_error_retry", { status: resp.status, ms }));
           await this.wait(ms);
           continue;
         }
@@ -447,8 +727,9 @@
       this.onProgress(this.state);
     }
     /**
-     * Bir kez, read-only search ile toplam mesaj sayısını tahmin eder (progress paydası için).
-     * Silme YAPMAZ. Search indekslenmemişse/hata verirse 0 döner (sayaç-tabanlı progress'e düşülür).
+     * One-time read-only search to estimate the total message count (for the progress
+     * denominator). Does NOT delete. Returns 0 if search isn't indexed / errors (falls
+     * back to count-based progress).
      */
     async estimateTotal(jobs) {
       let total = 0;
@@ -474,7 +755,7 @@
       }
       return total;
     }
-    /** Job'ları sıralı işleyen kuyruk. */
+    /** Sequential job queue. */
     async runQueue(jobs, { dryRun = false, estimatedTotal = 0 } = {}) {
       this.resetState();
       this.state.running = true;
@@ -498,17 +779,17 @@
           this.onJobDone(job, this.state);
         } catch (err) {
           if (err?.name === "AbortError") {
-            this.log("warn", "\u0130ptal edildi.");
+            this.log("warn", t("canceled_short"));
             break;
           }
-          this.log("error", `Job hatas\u0131: ${err?.message || err}`);
+          this.log("error", t("job_error", { err: err?.message || err }));
         }
       }
       this.state.running = false;
       this.onStop(this.state);
       return { delCount: this.state.delCount, failCount: this.state.failCount, grandTotal: this.state.grandTotal };
     }
-    /** Cursor sayfalama — DM/tek kanal için indeksten bağımsız ve deterministik. */
+    /** Cursor pagination — index-independent and deterministic (DM / single channel). */
     async runCursorJob(job, { dryRun = false } = {}) {
       let before = job.before || void 0;
       while (this.state.running) {
@@ -518,16 +799,16 @@
           resp = await this.api.request(url);
         } catch (err) {
           if (err?.name === "AbortError") throw err;
-          this.log("error", `Sayfa \xE7ekilemedi: ${err?.message || err}`);
+          this.log("error", t("page_fetch_failed", { err: err?.message || err }));
           return;
         }
         if (resp.status === 401 || resp.status === 403) {
-          this.log("error", `Yetki hatas\u0131 (${resp.status}). Token ge\xE7ersiz olabilir.`);
+          this.log("error", t("auth_error", { status: resp.status }));
           this.stop();
           return;
         }
         if (!resp.ok) {
-          this.log("error", `Beklenmeyen durum ${resp.status}; bu job atlan\u0131yor.`);
+          this.log("error", t("unexpected_status", { status: resp.status }));
           return;
         }
         const page = await resp.json();
@@ -562,7 +843,7 @@
         await this.closeDmIfClean(job);
       }
     }
-    /** Son kontrol: en yeni sayfada filtreye uyan mesaj kalmadıysa DM'i kapatır (DELETE /channels/{id}). */
+    /** Final check: if no filter-matching messages remain in the newest page, close the DM (DELETE /channels/{id}). */
     async closeDmIfClean(job) {
       const label = job.label || job.channelId;
       try {
@@ -572,22 +853,22 @@
         if (!Array.isArray(page)) return false;
         const { toDelete } = filterMessages(page, job.filters || {});
         if (toDelete.length > 0) {
-          this.log("warn", `${label}: h\xE2l\xE2 filtreye uyan mesaj var, DM kapat\u0131lmad\u0131.`);
+          this.log("warn", t("dm_still_has_msgs", { label }));
           return false;
         }
         const del = await this.api.request(`${API_BASE}/channels/${job.channelId}`, { method: "DELETE" });
         if (del.ok || del.status === 404) {
-          this.log("success", `${label}: temiz \u2014 DM kapat\u0131ld\u0131.`);
+          this.log("success", t("dm_closed", { label }));
           return true;
         }
-        this.log("warn", `${label}: DM kapat\u0131lamad\u0131 (durum ${del.status}).`);
+        this.log("warn", t("dm_close_failed", { label, status: del.status }));
         return false;
       } catch (err) {
         if (err?.name === "AbortError") throw err;
         return false;
       }
     }
-    /** Search stratejisi — sunucu-geneli (guildId, tek kanal yok). Boş sayfa doğrulamalı. */
+    /** Search strategy — server-wide (guildId, no single channel). Verifies empty pages. */
     async runSearchJob(job, { dryRun = false } = {}) {
       let offset = 0;
       let emptyStreak = 0;
@@ -603,16 +884,16 @@
           resp = await this.api.request(url);
         } catch (err) {
           if (err?.name === "AbortError") throw err;
-          this.log("error", `Arama hatas\u0131: ${err?.message || err}`);
+          this.log("error", t("search_error", { err: err?.message || err }));
           return;
         }
         if (resp.status === 401 || resp.status === 403) {
-          this.log("error", `Yetki hatas\u0131 (${resp.status}).`);
+          this.log("error", t("auth_error", { status: resp.status }));
           this.stop();
           return;
         }
         if (!resp.ok) {
-          this.log("error", `Arama durumu ${resp.status}; job atlan\u0131yor.`);
+          this.log("error", t("search_status", { status: resp.status }));
           return;
         }
         const data = await resp.json();
@@ -623,7 +904,7 @@
         if (discovered.length === 0) {
           if (total > 0 && emptyStreak < 3) {
             emptyStreak++;
-            this.log("verb", `Bo\u015F sayfa (${emptyStreak}/3) do\u011Frulan\u0131yor...`);
+            this.log("verb", t("empty_verify", { n: emptyStreak }));
             await this.wait(this.options.searchDelay);
             continue;
           }
@@ -647,7 +928,7 @@
         await this.wait(this.options.searchDelay);
       }
     }
-    /** Tek mesajı sil. Retry ApiClient'te merkezî olduğundan burada RETRY döngüsü yok. */
+    /** Delete a single message. Retry is centralized in ApiClient, so there's no RETRY loop here. */
     async deleteMessage(msg) {
       let resp;
       try {
@@ -670,7 +951,7 @@
         this.state.failCount++;
         return "FAIL_SKIP";
       }
-      this.log("error", `Silme hatas\u0131 ${resp.status} (id ${msg.id}).`);
+      this.log("error", t("delete_error", { status: resp.status, id: msg.id }));
       this.state.failCount++;
       return "FAILED";
     }
@@ -741,8 +1022,8 @@
     const m = String(href).match(/channels\/([\w@]+)\/(\d+)/);
     return m ? { guildId: m[1], channelId: m[2] } : { guildId: null, channelId: null };
   }
-  function looksLikeToken(t) {
-    return typeof t === "string" && t.trim().length >= 30;
+  function looksLikeToken(t2) {
+    return typeof t2 === "string" && t2.trim().length >= 30;
   }
   function getToken() {
     try {
@@ -750,9 +1031,9 @@
       window.webpackChunkdiscord_app.push([[Math.random()], {}, (req) => {
         for (const m of Object.values(req.c || {})) {
           try {
-            const t = m?.exports?.default?.getToken?.();
-            if (looksLikeToken(t)) {
-              found = t;
+            const t2 = m?.exports?.default?.getToken?.();
+            if (looksLikeToken(t2)) {
+              found = t2;
               break;
             }
           } catch {
@@ -767,8 +1048,8 @@
       const raw = iframe.contentWindow.localStorage.token;
       iframe.remove();
       if (raw) {
-        const t = JSON.parse(raw);
-        if (looksLikeToken(t)) return t;
+        const t2 = JSON.parse(raw);
+        if (looksLikeToken(t2)) return t2;
       }
     } catch {
     }
@@ -819,7 +1100,7 @@
   }
   async function listDms(api) {
     const resp = await api.request(`${API_BASE}/users/@me/channels`);
-    if (!resp.ok) throw new Error(`DM listesi al\u0131namad\u0131: ${resp.status}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const channels = await resp.json();
     return channels.filter((c) => c.type === CHANNEL_TYPE.DM || c.type === CHANNEL_TYPE.GROUP_DM).map(mapDmChannel).sort((a, b) => cmpSnowDesc(a.lastMessageId, b.lastMessageId));
   }
@@ -837,7 +1118,7 @@
     const selectAllEl = el("dmSelectAll");
     const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
     const fmtTime = (d) => d ? d.toLocaleDateString() : "";
-    const updateCount = () => countEl.textContent = `${selected.size} se\xE7ili / ${dms.length}`;
+    const updateCount = () => countEl.textContent = t("dm_count", { sel: selected.size, total: dms.length });
     function visibleRows() {
       const q = (searchEl.value || "").toLowerCase();
       return dms.filter((d) => !q || d.name.toLowerCase().includes(q));
@@ -847,8 +1128,8 @@
       for (const d of visibleRows()) {
         const row = document.createElement("label");
         row.className = "pc-dm-row";
-        const badge = d.type === CHANNEL_TYPE.GROUP_DM ? "Grup" : "DM";
-        row.innerHTML = `<input type="checkbox" ${selected.has(d.id) ? "checked" : ""}><div class="pc-dm-avatar" data-avatar></div><div class="pc-dm-meta"><div class="pc-dm-name pc-priv">${escapeHtml(d.name)}</div><div class="pc-dm-time">${fmtTime(d.lastTime)}</div></div><span class="pc-badge">${badge}</span>`;
+        const badge = d.type === CHANNEL_TYPE.GROUP_DM ? t("badge_group") : t("badge_dm");
+        row.innerHTML = `<input type="checkbox" ${selected.has(d.id) ? "checked" : ""}><div class="pc-dm-avatar" data-avatar></div><div class="pc-dm-meta"><div class="pc-dm-name pc-priv">${escapeHtml(d.name)}</div><div class="pc-dm-time">${escapeHtml(fmtTime(d.lastTime))}</div></div><span class="pc-badge">${escapeHtml(badge)}</span>`;
         const img = document.createElement("img");
         img.className = "pc-dm-avatar";
         img.alt = "";
@@ -867,13 +1148,13 @@
     async function loadDms() {
       const { api, token } = ctx.buildApi();
       if (!token) return;
-      log("info", "DM listesi y\xFCkleniyor...");
+      log("info", t("loading_dms"));
       try {
         dms = await listDms(api);
-        log("success", `${dms.length} DM/grup bulundu.`);
+        log("success", t("dms_found", { n: dms.length }));
         render();
       } catch (err) {
-        log("error", `DM listesi al\u0131namad\u0131: ${err.message || err}`);
+        log("error", t("dms_failed", { err: err.message || err }));
       }
     }
     searchEl.addEventListener("input", render);
@@ -888,7 +1169,7 @@
       const mode = panel.querySelector('input[name="pc-dm-mode"]:checked')?.value || "only";
       const targets = mode === "except" ? dms.filter((d) => !selected.has(d.id)) : dms.filter((d) => selected.has(d.id));
       const authorId = getAuthorId() || void 0;
-      if (!authorId) log("warn", "Kendi id'niz al\u0131namad\u0131; yaln\u0131z kendi mesajlar filtresi zay\u0131f olabilir.");
+      if (!authorId) log("warn", t("self_id_missing"));
       const baseFilters = ctx.getFilters();
       const closeAfter = el("closeDm")?.checked || false;
       return targets.map((d) => ({
@@ -905,7 +1186,7 @@
       el("focus").hidden = false;
       el("focusAvatar").src = avatarSrc(d);
       el("focusName").textContent = d.name || job.channelId;
-      el("focusProg").textContent = "ba\u015Fl\u0131yor...";
+      el("focusProg").textContent = t("starting");
       if (el("followDm").checked) {
         const link = document.querySelector(`a[href="/channels/@me/${job.channelId}"]`);
         if (link) link.click();
@@ -913,7 +1194,8 @@
     }
     ctx.onJobStart = (job) => {
       if (job.guildId === "@me" && job._dm) {
-        log("info", `\u25B6 DM: ${job._dm.name || job.channelId}${job._estTotal ? ` (~${job._estTotal} mesaj)` : ""}`);
+        const extra = job._estTotal ? t("dm_extra_est", { n: job._estTotal }) : "";
+        log("info", t("dm_start", { name: job._dm.name || job.channelId, extra }));
         showFocus(job);
       }
     };
@@ -921,48 +1203,50 @@
       if (!el("focus").hidden && s.currentJob && s.currentJob._dm) {
         const done = s.delCount - (s.jobDelStart || 0);
         const total = s.currentJob._estTotal;
-        el("focusProg").textContent = total ? `${done}/${total}` : `silinen: ${done}`;
+        el("focusProg").textContent = total ? `${done}/${total}` : t("deleted_n", { n: done });
       }
     };
     ctx.onJobDone = (job, s) => {
       if (job.guildId === "@me" && job._dm) {
         const done = s.delCount - (s.jobDelStart || 0);
-        log("success", `\u2713 ${job._dm.name || job.channelId}: ${job._estTotal ? `${done}/${job._estTotal}` : done} silindi.`);
+        const count = job._estTotal ? `${done}/${job._estTotal}` : done;
+        log("success", t("dm_done", { name: job._dm.name || job.channelId, count }));
       }
     };
     async function runDm({ dryRun }) {
       const jobs = buildJobs();
-      if (!jobs.length) return log("error", "Hedef DM yok (se\xE7im/moda g\xF6re bo\u015F).");
-      log("verb", `${jobs.length} DM i\u015Fi kuruldu. Onay bekleniyor...`);
-      if (!dryRun && !window.confirm(`${jobs.length} DM'de kendi mesajlar\u0131n silinecek. Devam?`)) {
-        log("warn", "\u0130ptal edildi.");
+      if (!jobs.length) return log("error", t("no_target_dm"));
+      log("verb", t("dm_jobs_built", { n: jobs.length }));
+      if (!dryRun && !window.confirm(t("confirm_dms", { n: jobs.length }))) {
+        log("warn", t("canceled"));
         return;
       }
-      log("verb", "Onayland\u0131. Token/motor haz\u0131rlan\u0131yor...");
+      log("verb", t("confirmed_prep"));
       const { api, token } = ctx.buildApi();
       if (!token) return;
-      log("verb", `Token al\u0131nd\u0131 (${token.length} karakter). Silme ba\u015Fl\u0131yor...`);
+      log("verb", t("token_got_engine", { n: token.length }));
       ctx.makeEngine(api);
       ctx.startWatchdog();
       ctx.switchTab("log");
-      log("info", `${jobs.length} DM i\u015Flenecek (${dryRun ? "dry-run" : "silme"}).`);
+      log("info", t("dms_processing", { n: jobs.length, mode: dryRun ? t("mode_dryrun") : t("mode_delete") }));
       const engine = ctx.getEngine();
       try {
         const estimatedTotal = !dryRun && jobs.length <= 10 ? await engine.estimateTotal(jobs) : 0;
-        if (estimatedTotal > 0) log("verb", `Tahmini toplam: ~${estimatedTotal} mesaj.`);
+        if (estimatedTotal > 0) log("verb", t("est_total", { n: estimatedTotal }));
         await engine.runQueue(jobs, { dryRun, estimatedTotal });
-        if (dryRun) log("success", `Dry-run: toplam ${engine.state.grandTotal} mesaj filtreye uyuyor.`);
+        if (dryRun) log("success", t("dryrun_total", { n: engine.state.grandTotal }));
         else {
-          log("success", `Toplu DM bitti. Silinen: ${engine.state.delCount}, ba\u015Far\u0131s\u0131z: ${engine.state.failCount}.`);
+          log("success", t("dm_all_done", { del: engine.state.delCount, fail: engine.state.failCount }));
           ctx.checkpoint.clear();
         }
       } catch (err) {
-        log("error", `Toplu DM hatas\u0131: ${err?.message || err}`);
+        log("error", t("dm_error", { err: err?.message || err }));
       } finally {
         el("focus").hidden = true;
       }
     }
     ctx.runDm = runDm;
+    updateCount();
   }
 
   // src/ui/ui.js
@@ -972,9 +1256,9 @@
     document.head.appendChild(s);
   }
   function createEl(html) {
-    const t = document.createElement("div");
-    t.innerHTML = html.trim();
-    return t.firstElementChild;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html.trim();
+    return tmp.firstElementChild;
   }
   function findMountPoint() {
     const help = document.querySelector('#app-mount a[href*="support.discord.com"], #app-mount a[href*="//discord.com/help"]');
@@ -987,8 +1271,10 @@
     return null;
   }
   function initUI() {
+    setLocale(detectLocale());
     insertCss(styles);
-    const panel = createEl(panelHtml);
+    const localized = panelHtml.replace(/\{\{(\w+)\}\}/g, (_, k) => t(k));
+    const panel = createEl(localized);
     document.body.appendChild(panel);
     const btn = createEl(buttonHtml);
     const el = (name) => panel.querySelector(`[data-el="${name}"]`);
@@ -1018,7 +1304,7 @@
       const line = document.createElement("div");
       line.className = "pc-log-line pc-log-debug";
       line.append(mk("sup", "", time), " ", mk("b", "pc-priv", author), ": ", mk("i", "pc-priv", content));
-      if (msg.attachments && msg.attachments.length) line.append(" ", mk("span", "pc-priv", `[${msg.attachments.length} ek]`));
+      if (msg.attachments && msg.attachments.length) line.append(" ", mk("span", "pc-priv", `[${msg.attachments.length} file(s)]`));
       line.append(" ", mk("sup", "pc-priv", `{ID:${msg.id}}`));
       if (status) line.append(status);
       logEl.appendChild(line);
@@ -1052,10 +1338,10 @@
     makeDraggable(panel, panel.querySelector("[data-drag]"));
     makeResizable(panel, panel.querySelector("[data-resize]"));
     function switchTab(name) {
-      panel.querySelectorAll(".pc-tab").forEach((t) => t.classList.toggle("is-active", t.dataset.tab === name));
+      panel.querySelectorAll(".pc-tab").forEach((tab) => tab.classList.toggle("is-active", tab.dataset.tab === name));
       panel.querySelectorAll(".pc-view").forEach((v) => v.hidden = v.dataset.view !== name);
     }
-    panel.querySelectorAll(".pc-tab").forEach((t) => t.addEventListener("click", () => switchTab(t.dataset.tab)));
+    panel.querySelectorAll(".pc-tab").forEach((tab) => tab.addEventListener("click", () => switchTab(tab.dataset.tab)));
     el("redact").addEventListener("change", (e) => panel.classList.toggle("pc-redact", e.target.checked));
     on("fillAuthor", () => el("authorId").value = getAuthorId());
     on("fillGuild", () => {
@@ -1069,17 +1355,17 @@
       el("guildId").value = guildId || "";
     });
     on("fillToken", () => {
-      const t = (() => {
+      const tok = (() => {
         try {
           return getToken();
         } catch {
           return "";
         }
       })();
-      if (looksLikeToken(t)) {
-        el("token").value = t;
-        log("success", `Token al\u0131nd\u0131 (${t.length} karakter).`);
-      } else log("error", `Token otomatik al\u0131namad\u0131. Elle yap\u0131\u015Ft\u0131r \u2192 F12 > Network sekmesi > discord.com/api'ye giden herhangi bir iste\u011Fe t\u0131kla > Request Headers > "authorization" sat\u0131r\u0131ndaki de\u011Feri kopyala.`);
+      if (looksLikeToken(tok)) {
+        el("token").value = tok;
+        log("success", t("token_got", { n: tok.length }));
+      } else log("error", t("token_autofill_failed"));
     });
     const bindSlider = (input, valSpan) => {
       const sync = () => valSpan.textContent = input.value;
@@ -1109,7 +1395,7 @@
         }
       }
       if (!looksLikeToken(token)) {
-        log("error", `Ge\xE7erli token yok. "doldur" i\u015Fe yaramad\u0131ysa token'\u0131 elle yap\u0131\u015Ft\u0131r \u2192 F12 > Network > discord.com/api'ye giden herhangi bir iste\u011Fe t\u0131kla > Request Headers > "authorization" de\u011Ferini kopyala.`);
+        log("error", t("no_valid_token"));
         return { api: null, token: "" };
       }
       const api = new ApiClient({
@@ -1174,7 +1460,7 @@
       watchdog = new Watchdog({
         getLastProgress: () => engine ? engine.state.lastProgressTs : Date.now(),
         isRunning: () => !!(engine && engine.state.running),
-        onStall: () => log("warn", `Uzun s\xFCredir ilerleme yok. Ger\xE7ekten tak\u0131ld\u0131ysa Durdur'a bas\u0131p paneldeki "Devam et" ile kald\u0131\u011F\u0131n yerden s\xFCrebilirsin.`),
+        onStall: () => log("warn", t("stall_hint")),
         stallMs: 9e4
       });
       watchdog.start();
@@ -1196,7 +1482,7 @@
         el("percent").textContent = `${val}/${s.grandTotal} (${pct}%)`;
       } else {
         bar.classList.add("is-indeterminate");
-        el("percent").textContent = `Silinen: ${s.delCount}`;
+        el("percent").textContent = t("deleted_n", { n: s.delCount });
       }
       if (ctx.onProgress) ctx.onProgress(s);
     }
@@ -1207,33 +1493,33 @@
       let jobs, confirmMsg;
       if (channelIds.length) {
         jobs = channelIds.map((ch) => ({ channelId: ch, guildId, filters }));
-        confirmMsg = `${channelIds.length} kanal/DM'de filtreye uyan mesajlar\u0131n silinecek. Devam?`;
+        confirmMsg = t("confirm_channels", { n: channelIds.length });
       } else if (guildId && guildId !== "@me") {
-        if (!filters.authorId) return log("error", "Sunucu-geneli silmede Author ID gerekli (yaln\u0131z kendi mesajlar\u0131n silinir).");
+        if (!filters.authorId) return log("error", t("need_author_server"));
         jobs = [{ guildId, filters }];
-        confirmMsg = `Bu sunucudaki (${guildId}) kendi mesajlar\u0131n silinecek. Devam?`;
+        confirmMsg = t("confirm_server", { guildId });
       } else {
-        return log("error", "Channel ID, veya sunucu-geneli silme i\xE7in Server ID + Author ID gerekli.");
+        return log("error", t("need_channel_or_server"));
       }
-      log("verb", `${jobs.length} i\u015F kuruldu (channelId=${channelIds.length ? "var" : "yok"}, guildId=${guildId || "yok"}). Onay bekleniyor...`);
+      log("verb", t("jobs_built", { n: jobs.length, ch: channelIds.length, g: guildId || "@me" }));
       if (!dryRun && !window.confirm(confirmMsg)) {
-        log("warn", "\u0130ptal edildi (onay verilmedi).");
+        log("warn", t("canceled_no_confirm"));
         return;
       }
-      log("verb", "Onayland\u0131. Token/motor haz\u0131rlan\u0131yor...");
+      log("verb", t("confirmed_prep"));
       const { api, token } = buildApi();
       if (!token) return;
-      log("verb", `Token al\u0131nd\u0131 (${token.length} karakter). Motor kuruldu, silme ba\u015Fl\u0131yor...`);
+      log("verb", t("token_got_engine", { n: token.length }));
       makeEngine(api);
       startWatchdog();
       switchTab("log");
-      log("info", dryRun ? "Dry-run ba\u015Flad\u0131 (silme yok)." : "Silme ba\u015Flad\u0131.");
+      log("info", dryRun ? t("dryrun_started") : t("delete_started"));
       const estimatedTotal = !dryRun && jobs.length <= 10 ? await engine.estimateTotal(jobs) : 0;
-      if (estimatedTotal > 0) log("verb", `Tahmini toplam: ~${estimatedTotal} mesaj.`);
+      if (estimatedTotal > 0) log("verb", t("est_total", { n: estimatedTotal }));
       await engine.runQueue(jobs, { dryRun, estimatedTotal });
-      if (dryRun) log("success", `Dry-run bitti: ${engine.state.grandTotal} mesaj filtreye uyuyor.`);
+      if (dryRun) log("success", t("dryrun_done", { n: engine.state.grandTotal }));
       else {
-        log("success", `Bitti. Silinen: ${engine.state.delCount}, ba\u015Far\u0131s\u0131z: ${engine.state.failCount}.`);
+        log("success", t("done_summary", { del: engine.state.delCount, fail: engine.state.failCount }));
         checkpoint.clear();
       }
     }
@@ -1241,9 +1527,9 @@
       const active = panel.querySelector(".pc-tab.is-active")?.dataset.tab;
       switchTab("log");
       const run = active === "dm" ? ctx.runDm : runChannel;
-      if (!run) return log("error", "DM sekmesi haz\u0131r de\u011Fil.");
+      if (!run) return log("error", t("dm_tab_not_ready"));
       Promise.resolve().then(() => run({ dryRun })).catch((err) => {
-        log("error", `Beklenmeyen hata: ${err?.message || err}`);
+        log("error", t("unexpected_error", { err: err?.message || err }));
         console.error("[purgecord] dispatch error", err);
       });
     }
@@ -1252,12 +1538,12 @@
     on("stop", () => {
       engine?.stop();
       abort?.abort();
-      log("warn", "Durduruldu.");
+      log("warn", t("stopped"));
     });
     const saved = checkpoint.load();
     if (saved && saved.job) {
       el("resumeBanner").hidden = false;
-      el("resumeText").textContent = `Yar\u0131m kalan i\u015F var (${saved.delCount || 0} silindi). Devam edilsin mi?`;
+      el("resumeText").textContent = t("resume_text", { n: saved.delCount || 0 });
       on("resume", async () => {
         el("resumeBanner").hidden = true;
         const { api, token } = buildApi();
@@ -1266,7 +1552,7 @@
         startWatchdog();
         switchTab("log");
         await engine.runQueue([{ ...saved.job, before: saved.before }], { dryRun: false });
-        log("success", "Devam eden i\u015F bitti.");
+        log("success", t("resume_done"));
         checkpoint.clear();
       });
       on("discard", () => {
@@ -1291,34 +1577,34 @@
         engine = e;
       },
       runDm: null,
-      // Task 14 doldurur
+      // filled by initDmTab
       onJobStart: null,
-      // Task 14 doldurur (focus kartı + DM log)
+      // filled by initDmTab (focus card + DM log)
       onJobDone: null,
-      // Task 14 doldurur (DM başı sonuç logu + DM kapatma)
+      // filled by initDmTab (per-DM result log + DM close)
       onProgress: null
-      // Task 14 doldurur (focus kartı ilerlemesi)
+      // filled by initDmTab (focus card progress)
     };
     try {
       initDmTab(ctx);
     } catch (err) {
-      console.error("[purgecord] initDmTab hatas\u0131:", err);
-      log("error", `DM sekmesi kurulamad\u0131: ${err?.message || err}. Sayfay\u0131 yenileyip tekrar dene.`);
+      console.error("[purgecord] initDmTab error:", err);
+      log("error", t("dmtab_init_failed", { err: err?.message || err }));
     }
-    log("info", "Purgecord haz\u0131r. Bir sekme se\xE7 ve ba\u015Flat.");
+    log("info", t("ready"));
     return ctx;
   }
 
   // src/main.js
-  var VERSION = "0.2.2";
+  var VERSION = "0.3.0";
   function boot() {
     if (window.__purgecord_loaded) return;
     window.__purgecord_loaded = true;
-    console.log(`%c[Purgecord] v${VERSION} y\xFCklendi. webpack haz\u0131r: ${!!window.webpackChunkdiscord_app}`, "color:#5865f2;font-weight:bold");
+    console.log(`%c[Purgecord] v${VERSION} loaded. webpack ready: ${!!window.webpackChunkdiscord_app}`, "color:#5865f2;font-weight:bold");
     try {
       initUI();
     } catch (err) {
-      console.error("[purgecord] ba\u015Flatma hatas\u0131:", err);
+      console.error("[purgecord] init error:", err);
     }
   }
   if (document.readyState === "loading") {

@@ -1,4 +1,5 @@
 import { computeBackoff } from './backoff.js';
+import { t } from '../i18n.js';
 
 export class AbortError extends Error {
   constructor() { super('aborted'); this.name = 'AbortError'; }
@@ -39,15 +40,15 @@ export class ApiClient {
         if (this.signal?.aborted) throw new AbortError();
         if (noRetry || attempt >= maxRetries) throw err;
         const ms = computeBackoff({ status: 0, attempt }, this.backoffOpts);
-        this.log('warn', `Ağ hatası; ${ms}ms sonra tekrar (deneme ${attempt + 1}).`);
+        this.log('warn', t('net_error_retry', { ms, n: attempt + 1 }));
         await this.wait(ms);
         continue;
       }
 
-      // Tek-denemelik (tahmin için): yanıtı olduğu gibi döndür, retry yapma.
+      // Single attempt (for the estimate): return the response as-is, no retry.
       if (noRetry) return resp;
 
-      // İndeksleniyor (202) veya rate limit (429) → bekle + tekrar
+      // Indexing (202) or rate limit (429) → wait + retry
       if (resp.status === 429 || resp.status === 202) {
         const body = await safeJson(resp);
         const retryAfterMs = Math.round((body?.retry_after ?? 0) * 1000);
@@ -56,21 +57,21 @@ export class ApiClient {
         this.stats.throttledCount++;
         this.stats.throttledTotalTime += ms;
         this.onThrottle({ ms, status: resp.status, global: globalLimited });
-        this.log('verb', `${resp.status === 202 ? 'İndeksleniyor' : 'Rate limit'}; ${ms}ms bekleniyor...`);
+        this.log('verb', t('throttle_wait', { kind: resp.status === 202 ? t('indexing') : t('rate_limit'), ms }));
         await this.wait(ms);
         continue;
       }
 
-      // Sunucu hatası → üstel backoff ile tekrar
+      // Server error → retry with exponential backoff
       if (resp.status >= 500) {
         if (attempt >= maxRetries) return resp;
         const ms = computeBackoff({ status: resp.status, attempt }, this.backoffOpts);
-        this.log('warn', `Sunucu hatası ${resp.status}; ${ms}ms sonra tekrar...`);
+        this.log('warn', t('server_error_retry', { status: resp.status, ms }));
         await this.wait(ms);
         continue;
       }
 
-      // 2xx ve diğer 4xx → çağırana bırak
+      // 2xx and other 4xx → leave to the caller
       return resp;
     }
   }

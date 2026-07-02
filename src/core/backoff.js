@@ -3,10 +3,10 @@ export const BACKOFF_DEFAULTS = { minDelay: 500, maxDelay: 60000, base: 1000, fa
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 /**
- * Bir sonraki deneme öncesi beklenecek ms. Daima minDelay..maxDelay arası.
+ * Milliseconds to wait before the next attempt. Always within minDelay..maxDelay.
  * @param {{status:number, retryAfterMs?:number, attempt?:number, globalLimited?:boolean}} info
  * @param {object} [opts] BACKOFF_DEFAULTS override
- * @param {() => number} [rng] jitter kaynağı (test için enjekte edilir)
+ * @param {() => number} [rng] jitter source (injected in tests)
  */
 export function computeBackoff({ status, retryAfterMs, attempt = 0, globalLimited = false }, opts = {}, rng = Math.random) {
   const o = { ...BACKOFF_DEFAULTS, ...opts };

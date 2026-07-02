@@ -17,7 +17,7 @@ function isDeletable(msg, o, regex, minSnow, maxSnow) {
 }
 
 /**
- * Bir sayfa mesajı silinecek/atlanacak olarak ayırır (saf).
+ * Split a page of messages into to-delete / skipped (pure).
  * @param {object[]} messages
  * @param {object} options
  * @returns {{toDelete: object[], skipped: object[]}}

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/local/purgecord
-// @version      0.2.2
-// @description  Discord toplu mesaj & DM silici (undiscord temelli, sağlamlaştırılmış)
+// @version      0.3.0
+// @description  Bulk delete Discord messages & DMs (based on undiscord, hardened)
 // @author       local
 // @match        https://*.discord.com/*
 // @grant        none

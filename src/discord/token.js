@@ -1,25 +1,25 @@
-/** URL'den guild/channel id'lerini çıkarır (saf). */
+/** Extract guild/channel ids from the URL (pure). */
 export function parseIdsFromUrl(href = (typeof location !== 'undefined' ? location.href : '')) {
   const m = String(href).match(/channels\/([\w@]+)\/(\d+)/);
   return m ? { guildId: m[1], channelId: m[2] } : { guildId: null, channelId: null };
 }
 
 /**
- * Bir değerin geçerli bir Discord token'ı gibi görünüp görünmediğini söyler (saf).
- * Discord token'ları en az ~59 karakterdir; "[object Object]" (15) gibi hatalı
- * değerleri ve string olmayanları reddeder.
+ * Whether a value looks like a valid Discord token (pure).
+ * Discord tokens are at least ~59 chars; rejects bad values like
+ * "[object Object]" (15) and non-strings.
  */
 export function looksLikeToken(t) {
   return typeof t === 'string' && t.trim().length >= 30;
 }
 
 /**
- * Auth token'ı webpack'ten (öncelik) veya iframe localStorage'dan alır.
- * SADECE geçerli bir string token döner; aksi halde ''. Yanlış modülün objesini
- * asla döndürmez — doğru modülü bulana kadar arar.
+ * Get the auth token from webpack (preferred) or the iframe localStorage.
+ * Returns ONLY a valid string token, otherwise ''. Never returns a wrong
+ * module's object — it keeps searching until it finds the right one.
  */
 export function getToken() {
-  // 1) webpack — Discord auth store. getToken() bir STRING dönmeli.
+  // 1) webpack — Discord auth store. getToken() must return a STRING.
   try {
     let found = '';
     window.webpackChunkdiscord_app.push([[Math.random()], {}, (req) => {
@@ -27,13 +27,13 @@ export function getToken() {
         try {
           const t = m?.exports?.default?.getToken?.();
           if (looksLikeToken(t)) { found = t; break; }
-        } catch { /* bazı modüllere erişim hata verebilir, atla */ }
+        } catch { /* some modules may throw on access, skip */ }
       }
     }]);
     if (looksLikeToken(found)) return found;
-  } catch { /* webpack yok/değişti */ }
+  } catch { /* webpack missing/changed */ }
 
-  // 2) iframe localStorage (eski Discord sürümleri)
+  // 2) iframe localStorage (older Discord versions)
   try {
     const iframe = document.body.appendChild(document.createElement('iframe'));
     const raw = iframe.contentWindow.localStorage.token;
@@ -42,12 +42,12 @@ export function getToken() {
       const t = JSON.parse(raw);
       if (looksLikeToken(t)) return t;
     }
-  } catch { /* yok */ }
+  } catch { /* not present */ }
 
   return '';
 }
 
-/** Kullanıcının kendi id'sini localStorage'dan alır. */
+/** Get the user's own id from localStorage. */
 export function getAuthorId() {
   try {
     const iframe = document.body.appendChild(document.createElement('iframe'));
