@@ -52,6 +52,27 @@ test('cursor iki sayfayı gezer, hepsini siler, <100 sayfada durur', async () =>
   assert.ok(gets[1].url.includes('before=101'));
 });
 
+test('cursor before=oldestId(page) kullanir, oldestId(toDelete) degil (regresyon korumasi)', async () => {
+  // page1: 100 mesaj, id 200..101. En ESKI mesaj (id 101) 'other' yazarli; 200..102 (99 mesaj) 'me'.
+  // filter authorId='me' => toDelete=99, en eski toDelete id=102. Dogru cursor: oldestId(page)=101.
+  const page1 = Array.from({ length: 100 }, (_, k) => {
+    const id = 200 - k; // 200..101
+    return m(id, { author: { id: id === 101 ? 'other' : 'me' } });
+  });
+  const page2 = [m(100), m(99)];
+  const api = fakeApi(({ url, method }) => {
+    if (method === 'DELETE') return makeResp(204);
+    if (!url.includes('before=')) return makeResp(200, page1);
+    if (url.includes('before=101')) return makeResp(200, page2); // yalniz dogru cursor (101) bunu getirir
+    return makeResp(200, []); // hatali cursor (before=102) => bos sayfa => erken durur
+  });
+  const engine = engineWith(api);
+  const res = await engine.runQueue([{ channelId: 'c', filters: { authorId: 'me' } }]);
+  assert.equal(res.delCount, 101); // 99 (page1 'me') + 2 (page2)
+  const gets = api.calls.filter(c => c.method === 'GET');
+  assert.ok(gets[1].url.includes('before=101')); // tam sayfanin en eski id'si (101), toDelete'in degil (102)
+});
+
 test('boş sayfada durur (yanlış "bitti" yok — gerçekten boş)', async () => {
   const api = fakeApi(() => makeResp(200, []));
   const engine = engineWith(api);
