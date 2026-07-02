@@ -158,7 +158,7 @@ export class DeleteEngine {
         for (const msg of toDelete) {
           if (!this.state.running) return;
           const r = await this.deleteMessage(msg);
-          if (r === 'FAIL_SKIP') offset++; // arşivli: bir sonraki sayfada atla
+          if (r !== 'OK') offset++; // silinemeyen (FAILED/FAIL_SKIP) mesaj indekste kalir -> ilerlet, livelock'u onle
           this.markProgress();
           await this.wait(this.options.deleteDelay);
         }
