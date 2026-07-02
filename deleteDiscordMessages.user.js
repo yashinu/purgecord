@@ -6,8 +6,8 @@
 // @author       yashinu
 // @homepageURL  https://github.com/yashinu/purgecord
 // @supportURL   https://github.com/yashinu/purgecord/issues
-// @downloadURL  https://raw.githubusercontent.com/yashinu/purgecord/main/dist/deleteDiscordMessages.user.js
-// @updateURL    https://raw.githubusercontent.com/yashinu/purgecord/main/dist/deleteDiscordMessages.user.js
+// @downloadURL  https://raw.githubusercontent.com/yashinu/purgecord/main/deleteDiscordMessages.user.js
+// @updateURL    https://raw.githubusercontent.com/yashinu/purgecord/main/deleteDiscordMessages.user.js
 // @match        https://*.discord.com/*
 // @grant        none
 // @run-at       document-idle

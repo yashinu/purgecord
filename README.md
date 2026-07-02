@@ -20,14 +20,14 @@ A userscript to bulk-delete **your own** Discord messages — in a channel/serve
 **Option A — prebuilt (easiest):**
 1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/).
 2. Open the raw script and let your userscript manager install it:
-   `https://raw.githubusercontent.com/yashinu/purgecord/main/dist/deleteDiscordMessages.user.js`
+   **https://raw.githubusercontent.com/yashinu/purgecord/main/deleteDiscordMessages.user.js**
 3. Open `discord.com` in the browser — a 🧹 icon appears in the top bar next to the inbox/help buttons.
 
 **Option B — build from source:**
 ```bash
 npm install
 npm run build
-# then load dist/deleteDiscordMessages.user.js into your userscript manager
+# then load deleteDiscordMessages.user.js into your userscript manager
 ```
 
 > Works with Discord in the **browser** (userscript managers don't run inside the desktop app).
@@ -43,10 +43,24 @@ npm run build
 
 ```bash
 npm test        # pure-logic unit tests (node:test)
-npm run build   # bundle src/ into dist/deleteDiscordMessages.user.js (esbuild)
+npm run build   # bundle src/ into deleteDiscordMessages.user.js (esbuild)
 ```
 
 The core logic (pagination, filters, retry/backoff, DM discovery, checkpoint, watchdog) is unit-tested with Node's built-in test runner. DOM/API behavior is verified manually in the browser.
+
+## Türkçe
+
+Discord'da **kendi** mesajlarını toplu silen bir userscript — bir kanal/sunucuda veya tüm DM'lerinde. Arayüz, Discord dilin Türkçe ise **otomatik olarak Türkçe** görünür.
+
+> ⚠️ **Önce oku.** Bir kullanıcı hesabını otomatikleştirmek ("self-bot") Discord'un **Hizmet Şartları'na aykırıdır** ve teoride hesabına işlem uygulanmasına yol açabilir. Kendi mesajlarını silmek Discord'un nadiren yaptırım uyguladığı gri bir alandır, ama **sorumluluk sende: yalnız kendi hesabında, kendi verin için kullan.** **Token'ını kimseyle paylaşma** — hesabına tam erişim verir. Bu üçüncü taraf bir scripttir: yalnız koda güveniyorsan çalıştır (hepsi burada, oku).
+
+**Kurulum:** Tampermonkey/Violentmonkey kur → şu ham linki aç, kurulumu onayla → `discord.com`'u tarayıcıda aç (üst çubukta inbox/help yanında 🧹 çıkar):
+**https://raw.githubusercontent.com/yashinu/purgecord/main/deleteDiscordMessages.user.js**
+
+**Kullanım:**
+- **Kanal / Sunucu:** author/server/channel id'lerini "mevcut" ile doldur, filtre seç, **Sil** (veya önce **Sadece say**). Channel id'yi boş bırakıp Server id + Author id verirsen tüm sunucuda siler.
+- **Toplu DM:** **DM'leri yükle** → seç → *Sadece seçilenler* / *Seçilenler hariç* → **Sil**. DM başına ilerleme, isteğe bağlı "DM'i Discord'da takip et" ve "temizlenen DM'i kapat".
+- **Sadece say:** silmeden kaç mesajın etkileneceğini gösterir. **Devam et:** sekme yenilenirse kaldığı yerden sürer. **Streamer modu:** token/id/DM adı/mesaj içeriğini bulanıklaştırır (ekran paylaşımı için).
 
 ## Credits
 
