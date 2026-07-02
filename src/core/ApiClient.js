@@ -23,7 +23,7 @@ export class ApiClient {
     this.stats = { throttledCount: 0, throttledTotalTime: 0, requests: 0 };
   }
 
-  async request(url, { method = 'GET', maxRetries = 8 } = {}) {
+  async request(url, { method = 'GET', maxRetries = 8, noRetry = false } = {}) {
     for (let attempt = 0; ; attempt++) {
       if (this.signal?.aborted) throw new AbortError();
       this.stats.requests++;
@@ -37,12 +37,15 @@ export class ApiClient {
         });
       } catch (err) {
         if (this.signal?.aborted) throw new AbortError();
-        if (attempt >= maxRetries) throw err;
+        if (noRetry || attempt >= maxRetries) throw err;
         const ms = computeBackoff({ status: 0, attempt }, this.backoffOpts);
         this.log('warn', `Ağ hatası; ${ms}ms sonra tekrar (deneme ${attempt + 1}).`);
         await this.wait(ms);
         continue;
       }
+
+      // Tek-denemelik (tahmin için): yanıtı olduğu gibi döndür, retry yapma.
+      if (noRetry) return resp;
 
       // İndeksleniyor (202) veya rate limit (429) → bekle + tekrar
       if (resp.status === 429 || resp.status === 202) {
@@ -53,7 +56,7 @@ export class ApiClient {
         this.stats.throttledCount++;
         this.stats.throttledTotalTime += ms;
         this.onThrottle({ ms, status: resp.status, global: globalLimited });
-        this.log('warn', `${resp.status === 202 ? 'İndeksleniyor' : 'Rate limit'}; ${ms}ms bekleniyor...`);
+        this.log('verb', `${resp.status === 202 ? 'İndeksleniyor' : 'Rate limit'}; ${ms}ms bekleniyor...`);
         await this.wait(ms);
         continue;
       }

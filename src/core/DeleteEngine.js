@@ -35,11 +35,42 @@ export class DeleteEngine {
     this.onProgress(this.state);
   }
 
+  /**
+   * Bir kez, read-only search ile toplam mesaj sayısını tahmin eder (progress paydası için).
+   * Silme YAPMAZ. Search indekslenmemişse/hata verirse 0 döner (sayaç-tabanlı progress'e düşülür).
+   */
+  async estimateTotal(jobs) {
+    let total = 0;
+    for (const job of jobs) {
+      try {
+        const params = new URLSearchParams();
+        if (job.filters?.authorId) params.set('author_id', job.filters.authorId);
+        if (job.filters?.content) params.set('content', job.filters.content);
+        if (job.filters?.hasLink) params.set('has', 'link');
+        if (job.filters?.hasFile) params.set('has', 'file');
+        const base = (job.guildId && job.guildId !== '@me')
+          ? `${API_BASE}/guilds/${job.guildId}/messages/search`
+          : `${API_BASE}/channels/${job.channelId}/messages/search`;
+        const resp = await this.api.request(`${base}?${params.toString()}`, { noRetry: true });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (typeof data.total_results === 'number') total += data.total_results;
+        }
+      } catch (err) {
+        if (err?.name === 'AbortError') break;
+        /* tahmin best-effort; diğer hataları yoksay */
+      }
+    }
+    return total;
+  }
+
   /** Job'ları sıralı işleyen kuyruk. */
-  async runQueue(jobs, { dryRun = false } = {}) {
+  async runQueue(jobs, { dryRun = false, estimatedTotal = 0 } = {}) {
     this.resetState();
     this.state.running = true;
     this.state.dryRun = dryRun;
+    this._estimated = estimatedTotal > 0;
+    if (this._estimated) this.state.grandTotal = estimatedTotal;
     this.onStart(this.state);
 
     for (const job of jobs) {
@@ -94,7 +125,8 @@ export class DeleteEngine {
       if (!Array.isArray(page) || page.length === 0) break; // kanalın başı → gerçekten bitti
 
       const { toDelete } = filterMessages(page, job.filters || {});
-      this.state.grandTotal += toDelete.length;
+      // Tahmin varsa payda sabit; yoksa keşfedildikçe biriktir (sayaç-tabanlı).
+      if (!this._estimated) this.state.grandTotal += toDelete.length;
 
       if (dryRun) {
         this.markProgress();

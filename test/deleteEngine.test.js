@@ -164,3 +164,28 @@ test('runQueue birden çok job\'u sıralı işler', async () => {
   assert.ok(api.calls.some(c => c.url.includes('channels/aaa/')));
   assert.ok(api.calls.some(c => c.url.includes('channels/bbb/')));
 });
+
+test('estimateTotal search total_results değerlerini toplar', async () => {
+  const api = fakeApi(({ url }) => {
+    if (url.includes('/channels/c/messages/search')) return makeResp(200, { total_results: 42, messages: [] });
+    return makeResp(200, []);
+  });
+  const engine = engineWith(api);
+  const total = await engine.estimateTotal([{ channelId: 'c', filters: { authorId: 'me' } }]);
+  assert.equal(total, 42);
+  // author_id parametresi search url'ine eklenmeli
+  assert.ok(api.calls.some(c => c.url.includes('author_id=me')));
+});
+
+test('runQueue estimatedTotal verilince grandTotal sabit kalır (sayfa başına biriktirmez)', async () => {
+  let served = false;
+  const api = fakeApi(({ method }) => {
+    if (method === 'DELETE') return makeResp(204);
+    if (!served) { served = true; return makeResp(200, [m(2), m(1)]); }
+    return makeResp(200, []);
+  });
+  const engine = engineWith(api);
+  const res = await engine.runQueue([{ channelId: 'c', filters: { authorId: 'me' } }], { estimatedTotal: 10 });
+  assert.equal(res.delCount, 2);
+  assert.equal(res.grandTotal, 10); // tahmin sabit; +2 eklenmedi
+});

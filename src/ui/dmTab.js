@@ -130,7 +130,10 @@ export function initDmTab(ctx) {
 
     const engine = ctx.getEngine();
     try {
-      await engine.runQueue(jobs, { dryRun });
+      // Progress paydası için tek seferlik toplam tahmini (read-only; az sayıda DM için)
+      const estimatedTotal = (!dryRun && jobs.length <= 10) ? await engine.estimateTotal(jobs) : 0;
+      if (estimatedTotal > 0) log('verb', `Tahmini toplam: ~${estimatedTotal} mesaj.`);
+      await engine.runQueue(jobs, { dryRun, estimatedTotal });
       if (dryRun) log('success', `Dry-run: toplam ${engine.state.grandTotal} mesaj filtreye uyuyor.`);
       else { log('success', `Toplu DM bitti. Silinen: ${engine.state.delCount}, başarısız: ${engine.state.failCount}.`); ctx.checkpoint.clear(); }
     } catch (err) {

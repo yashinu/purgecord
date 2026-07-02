@@ -130,14 +130,14 @@ export function initUI() {
       wait: (ms) => new Promise((r) => setTimeout(r, ms)),
       signal: abort.signal,
       onThrottle: ({ ms }) => {
-        if (engine) engine.state.lastProgressTs = Date.now();
-        if (engine && ms) {
-          const next = Math.min(10000, Math.max(engine.options.deleteDelay, Math.round(ms)));
-          if (next > engine.options.deleteDelay) {
-            engine.options.deleteDelay = next;
-            el('deleteDelay').value = next;
-            el('deleteDelayVal').textContent = next;
-          }
+        if (!engine) return;
+        engine.state.lastProgressTs = Date.now(); // aktif ama throttle'da — stall sayma
+        // Uyarlanabilir: her 429'da silme gecikmesini kademeli artır (sürdürülebilir hıza yakınsa), max 6s
+        const next = Math.min(6000, Math.max(engine.options.deleteDelay + 250, Math.round(ms || 0)));
+        if (next > engine.options.deleteDelay) {
+          engine.options.deleteDelay = next;
+          el('deleteDelay').value = Math.min(10000, next);
+          el('deleteDelayVal').textContent = next;
         }
       },
       log,
@@ -243,7 +243,10 @@ export function initUI() {
 
     switchTab('log');
     log('info', dryRun ? 'Dry-run başladı (silme yok).' : 'Silme başladı.');
-    await engine.runQueue(jobs, { dryRun });
+    // Progress paydası için tek seferlik toplam tahmini (read-only, best-effort; az sayıda iş için)
+    const estimatedTotal = (!dryRun && jobs.length <= 10) ? await engine.estimateTotal(jobs) : 0;
+    if (estimatedTotal > 0) log('verb', `Tahmini toplam: ~${estimatedTotal} mesaj.`);
+    await engine.runQueue(jobs, { dryRun, estimatedTotal });
     if (dryRun) log('success', `Dry-run bitti: ${engine.state.grandTotal} mesaj filtreye uyuyor.`);
     else { log('success', `Bitti. Silinen: ${engine.state.delCount}, başarısız: ${engine.state.failCount}.`); checkpoint.clear(); }
   }

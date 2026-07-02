@@ -114,3 +114,11 @@ test('global rate limit retry_after ile beklenir', async () => {
   await client.request('u');
   assert.equal(waits[0], 4000);
 });
+
+test('noRetry: 429 yanıtını beklemeden ve retry yapmadan döndürür (tahmin için)', async () => {
+  const { client, waits } = makeClient(scriptedFetch([makeResp(429, { retry_after: 5 })]));
+  const resp = await client.request('u', { noRetry: true });
+  assert.equal(resp.status, 429);
+  assert.equal(waits.length, 0); // hiç beklemedi
+  assert.equal(client.stats.throttledCount, 0); // throttle sayacı da artmadı
+});

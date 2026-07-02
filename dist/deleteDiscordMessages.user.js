@@ -155,8 +155,8 @@
       </details>
 
       <details class="pc-details"><summary>Geli\u015Fmi\u015F</summary>
-        <div class="pc-field" style="margin-top:10px"><label>Silme gecikmesi: <span data-el="deleteDelayVal">1000</span>ms</label>
-          <input data-el="deleteDelay" type="range" min="500" max="10000" step="50" value="1000" style="width:100%"></div>
+        <div class="pc-field" style="margin-top:10px"><label>Silme gecikmesi: <span data-el="deleteDelayVal">1250</span>ms</label>
+          <input data-el="deleteDelay" type="range" min="500" max="10000" step="50" value="1250" style="width:100%"></div>
         <div class="pc-field"><label>Sayfa gecikmesi: <span data-el="searchDelayVal">1000</span>ms</label>
           <input data-el="searchDelay" type="range" min="0" max="10000" step="50" value="1000" style="width:100%"></div>
         <div class="pc-field"><label>Token</label>
@@ -305,7 +305,7 @@
       this.log = log;
       this.stats = { throttledCount: 0, throttledTotalTime: 0, requests: 0 };
     }
-    async request(url, { method = "GET", maxRetries = 8 } = {}) {
+    async request(url, { method = "GET", maxRetries = 8, noRetry = false } = {}) {
       for (let attempt = 0; ; attempt++) {
         if (this.signal?.aborted) throw new AbortError();
         this.stats.requests++;
@@ -318,12 +318,13 @@
           });
         } catch (err) {
           if (this.signal?.aborted) throw new AbortError();
-          if (attempt >= maxRetries) throw err;
+          if (noRetry || attempt >= maxRetries) throw err;
           const ms = computeBackoff({ status: 0, attempt }, this.backoffOpts);
           this.log("warn", `A\u011F hatas\u0131; ${ms}ms sonra tekrar (deneme ${attempt + 1}).`);
           await this.wait(ms);
           continue;
         }
+        if (noRetry) return resp;
         if (resp.status === 429 || resp.status === 202) {
           const body = await safeJson(resp);
           const retryAfterMs = Math.round((body?.retry_after ?? 0) * 1e3);
@@ -332,7 +333,7 @@
           this.stats.throttledCount++;
           this.stats.throttledTotalTime += ms;
           this.onThrottle({ ms, status: resp.status, global: globalLimited });
-          this.log("warn", `${resp.status === 202 ? "\u0130ndeksleniyor" : "Rate limit"}; ${ms}ms bekleniyor...`);
+          this.log("verb", `${resp.status === 202 ? "\u0130ndeksleniyor" : "Rate limit"}; ${ms}ms bekleniyor...`);
           await this.wait(ms);
           continue;
         }
@@ -439,11 +440,38 @@
       this.state.lastProgressTs = Date.now();
       this.onProgress(this.state);
     }
+    /**
+     * Bir kez, read-only search ile toplam mesaj sayısını tahmin eder (progress paydası için).
+     * Silme YAPMAZ. Search indekslenmemişse/hata verirse 0 döner (sayaç-tabanlı progress'e düşülür).
+     */
+    async estimateTotal(jobs) {
+      let total = 0;
+      for (const job of jobs) {
+        try {
+          const params = new URLSearchParams();
+          if (job.filters?.authorId) params.set("author_id", job.filters.authorId);
+          if (job.filters?.content) params.set("content", job.filters.content);
+          if (job.filters?.hasLink) params.set("has", "link");
+          if (job.filters?.hasFile) params.set("has", "file");
+          const base = job.guildId && job.guildId !== "@me" ? `${API_BASE}/guilds/${job.guildId}/messages/search` : `${API_BASE}/channels/${job.channelId}/messages/search`;
+          const resp = await this.api.request(`${base}?${params.toString()}`, { noRetry: true });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (typeof data.total_results === "number") total += data.total_results;
+          }
+        } catch (err) {
+          if (err?.name === "AbortError") break;
+        }
+      }
+      return total;
+    }
     /** Job'ları sıralı işleyen kuyruk. */
-    async runQueue(jobs, { dryRun = false } = {}) {
+    async runQueue(jobs, { dryRun = false, estimatedTotal = 0 } = {}) {
       this.resetState();
       this.state.running = true;
       this.state.dryRun = dryRun;
+      this._estimated = estimatedTotal > 0;
+      if (this._estimated) this.state.grandTotal = estimatedTotal;
       this.onStart(this.state);
       for (const job of jobs) {
         if (!this.state.running) break;
@@ -493,7 +521,7 @@
         const page = await resp.json();
         if (!Array.isArray(page) || page.length === 0) break;
         const { toDelete } = filterMessages(page, job.filters || {});
-        this.state.grandTotal += toDelete.length;
+        if (!this._estimated) this.state.grandTotal += toDelete.length;
         if (dryRun) {
           this.markProgress();
         } else {
@@ -864,7 +892,9 @@
       log("info", `${jobs.length} DM i\u015Flenecek (${dryRun ? "dry-run" : "silme"}).`);
       const engine = ctx.getEngine();
       try {
-        await engine.runQueue(jobs, { dryRun });
+        const estimatedTotal = !dryRun && jobs.length <= 10 ? await engine.estimateTotal(jobs) : 0;
+        if (estimatedTotal > 0) log("verb", `Tahmini toplam: ~${estimatedTotal} mesaj.`);
+        await engine.runQueue(jobs, { dryRun, estimatedTotal });
         if (dryRun) log("success", `Dry-run: toplam ${engine.state.grandTotal} mesaj filtreye uyuyor.`);
         else {
           log("success", `Toplu DM bitti. Silinen: ${engine.state.delCount}, ba\u015Far\u0131s\u0131z: ${engine.state.failCount}.`);
@@ -1000,14 +1030,13 @@
         wait: (ms) => new Promise((r) => setTimeout(r, ms)),
         signal: abort.signal,
         onThrottle: ({ ms }) => {
-          if (engine) engine.state.lastProgressTs = Date.now();
-          if (engine && ms) {
-            const next = Math.min(1e4, Math.max(engine.options.deleteDelay, Math.round(ms)));
-            if (next > engine.options.deleteDelay) {
-              engine.options.deleteDelay = next;
-              el("deleteDelay").value = next;
-              el("deleteDelayVal").textContent = next;
-            }
+          if (!engine) return;
+          engine.state.lastProgressTs = Date.now();
+          const next = Math.min(6e3, Math.max(engine.options.deleteDelay + 250, Math.round(ms || 0)));
+          if (next > engine.options.deleteDelay) {
+            engine.options.deleteDelay = next;
+            el("deleteDelay").value = Math.min(1e4, next);
+            el("deleteDelayVal").textContent = next;
           }
         },
         log
@@ -1107,7 +1136,9 @@
       startWatchdog();
       switchTab("log");
       log("info", dryRun ? "Dry-run ba\u015Flad\u0131 (silme yok)." : "Silme ba\u015Flad\u0131.");
-      await engine.runQueue(jobs, { dryRun });
+      const estimatedTotal = !dryRun && jobs.length <= 10 ? await engine.estimateTotal(jobs) : 0;
+      if (estimatedTotal > 0) log("verb", `Tahmini toplam: ~${estimatedTotal} mesaj.`);
+      await engine.runQueue(jobs, { dryRun, estimatedTotal });
       if (dryRun) log("success", `Dry-run bitti: ${engine.state.grandTotal} mesaj filtreye uyuyor.`);
       else {
         log("success", `Bitti. Silinen: ${engine.state.delCount}, ba\u015Far\u0131s\u0131z: ${engine.state.failCount}.`);

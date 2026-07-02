@@ -62,8 +62,8 @@ export const panelHtml = `
       </details>
 
       <details class="pc-details"><summary>Gelişmiş</summary>
-        <div class="pc-field" style="margin-top:10px"><label>Silme gecikmesi: <span data-el="deleteDelayVal">1000</span>ms</label>
-          <input data-el="deleteDelay" type="range" min="500" max="10000" step="50" value="1000" style="width:100%"></div>
+        <div class="pc-field" style="margin-top:10px"><label>Silme gecikmesi: <span data-el="deleteDelayVal">1250</span>ms</label>
+          <input data-el="deleteDelay" type="range" min="500" max="10000" step="50" value="1250" style="width:100%"></div>
         <div class="pc-field"><label>Sayfa gecikmesi: <span data-el="searchDelayVal">1000</span>ms</label>
           <input data-el="searchDelay" type="range" min="0" max="10000" step="50" value="1000" style="width:100%"></div>
         <div class="pc-field"><label>Token</label>
