@@ -223,10 +223,13 @@ export function initUI() {
       return log('error', 'Channel ID, veya sunucu-geneli silme için Server ID + Author ID gerekli.');
     }
 
-    if (!dryRun && !window.confirm(confirmMsg)) return;
+    log('verb', `${jobs.length} iş kuruldu (channelId=${channelIds.length ? 'var' : 'yok'}, guildId=${guildId || 'yok'}). Onay bekleniyor...`);
+    if (!dryRun && !window.confirm(confirmMsg)) { log('warn', 'İptal edildi (onay verilmedi).'); return; }
+    log('verb', 'Onaylandı. Token/motor hazırlanıyor...');
 
     const { api, token } = buildApi();
-    if (!token) return log('error', 'Token bulunamadı.');
+    if (!token) return log('error', 'Token bulunamadı! Gelişmiş > Token alanına elle yapıştır (aşağıdaki yönergeye bak).');
+    log('verb', `Token alındı (uzunluk ${token.length}). Motor kuruldu, silme başlıyor...`);
     makeEngine(api);
     startWatchdog();
 
@@ -240,12 +243,14 @@ export function initUI() {
   // --- start/dry/stop dispatch (aktif sekmeye göre) ---
   function dispatch({ dryRun }) {
     const active = panel.querySelector('.pc-tab.is-active')?.dataset.tab;
-    if (active === 'dm') {
-      if (ctx.runDm) ctx.runDm({ dryRun });
-      else log('error', 'DM sekmesi hazır değil.');
-    } else {
-      runChannel({ dryRun });
-    }
+    switchTab('log'); // hatalar/ilerleme görünür olsun diye önce Log sekmesine geç
+    const run = active === 'dm' ? ctx.runDm : runChannel;
+    if (!run) return log('error', 'DM sekmesi hazır değil.');
+    // async hataları sessizce yutma — Log'a yaz:
+    Promise.resolve().then(() => run({ dryRun })).catch((err) => {
+      log('error', `Beklenmeyen hata: ${err?.message || err}`);
+      console.error('[purgecord] dispatch error', err);
+    });
   }
   on('start', () => dispatch({ dryRun: false }));
   on('dry', () => dispatch({ dryRun: true }));

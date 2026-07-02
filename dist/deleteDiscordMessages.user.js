@@ -160,7 +160,7 @@
         <div class="pc-field"><label>Sayfa gecikmesi: <span data-el="searchDelayVal">1000</span>ms</label>
           <input data-el="searchDelay" type="range" min="0" max="10000" step="50" value="1000" style="width:100%"></div>
         <div class="pc-field"><label>Token</label>
-          <div class="pc-row"><input class="pc-input pc-priv" data-el="token" type="text" placeholder="otomatik doldurulur">
+          <div class="pc-row"><input class="pc-input" data-el="token" type="password" autocomplete="off" placeholder="otomatik doldurulur">
           <button class="pc-btn pc-small" data-action="fillToken">doldur</button></div></div>
       </details>
     </section>
@@ -835,9 +835,15 @@
     async function runDm({ dryRun }) {
       const jobs = buildJobs();
       if (!jobs.length) return log("error", "Hedef DM yok (se\xE7im/moda g\xF6re bo\u015F).");
-      if (!dryRun && !window.confirm(`${jobs.length} DM'de kendi mesajlar\u0131n silinecek. Devam?`)) return;
+      log("verb", `${jobs.length} DM i\u015Fi kuruldu. Onay bekleniyor...`);
+      if (!dryRun && !window.confirm(`${jobs.length} DM'de kendi mesajlar\u0131n silinecek. Devam?`)) {
+        log("warn", "\u0130ptal edildi.");
+        return;
+      }
+      log("verb", "Onayland\u0131. Token/motor haz\u0131rlan\u0131yor...");
       const { api, token } = ctx.buildApi();
-      if (!token) return log("error", "Token yok.");
+      if (!token) return log("error", "Token bulunamad\u0131! Geli\u015Fmi\u015F > Token alan\u0131na elle yap\u0131\u015Ft\u0131r.");
+      log("verb", `Token al\u0131nd\u0131 (uzunluk ${token.length}). Silme ba\u015Fl\u0131yor...`);
       ctx.makeEngine(api);
       ctx.startWatchdog();
       ctx.switchTab("log");
@@ -1058,9 +1064,15 @@
       } else {
         return log("error", "Channel ID, veya sunucu-geneli silme i\xE7in Server ID + Author ID gerekli.");
       }
-      if (!dryRun && !window.confirm(confirmMsg)) return;
+      log("verb", `${jobs.length} i\u015F kuruldu (channelId=${channelIds.length ? "var" : "yok"}, guildId=${guildId || "yok"}). Onay bekleniyor...`);
+      if (!dryRun && !window.confirm(confirmMsg)) {
+        log("warn", "\u0130ptal edildi (onay verilmedi).");
+        return;
+      }
+      log("verb", "Onayland\u0131. Token/motor haz\u0131rlan\u0131yor...");
       const { api, token } = buildApi();
-      if (!token) return log("error", "Token bulunamad\u0131.");
+      if (!token) return log("error", "Token bulunamad\u0131! Geli\u015Fmi\u015F > Token alan\u0131na elle yap\u0131\u015Ft\u0131r (a\u015Fa\u011F\u0131daki y\xF6nergeye bak).");
+      log("verb", `Token al\u0131nd\u0131 (uzunluk ${token.length}). Motor kuruldu, silme ba\u015Fl\u0131yor...`);
       makeEngine(api);
       startWatchdog();
       switchTab("log");
@@ -1074,12 +1086,13 @@
     }
     function dispatch({ dryRun }) {
       const active = panel.querySelector(".pc-tab.is-active")?.dataset.tab;
-      if (active === "dm") {
-        if (ctx.runDm) ctx.runDm({ dryRun });
-        else log("error", "DM sekmesi haz\u0131r de\u011Fil.");
-      } else {
-        runChannel({ dryRun });
-      }
+      switchTab("log");
+      const run = active === "dm" ? ctx.runDm : runChannel;
+      if (!run) return log("error", "DM sekmesi haz\u0131r de\u011Fil.");
+      Promise.resolve().then(() => run({ dryRun })).catch((err) => {
+        log("error", `Beklenmeyen hata: ${err?.message || err}`);
+        console.error("[purgecord] dispatch error", err);
+      });
     }
     on("start", () => dispatch({ dryRun: false }));
     on("dry", () => dispatch({ dryRun: true }));

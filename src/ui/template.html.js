@@ -67,7 +67,7 @@ export const panelHtml = `
         <div class="pc-field"><label>Sayfa gecikmesi: <span data-el="searchDelayVal">1000</span>ms</label>
           <input data-el="searchDelay" type="range" min="0" max="10000" step="50" value="1000" style="width:100%"></div>
         <div class="pc-field"><label>Token</label>
-          <div class="pc-row"><input class="pc-input pc-priv" data-el="token" type="text" placeholder="otomatik doldurulur">
+          <div class="pc-row"><input class="pc-input" data-el="token" type="password" autocomplete="off" placeholder="otomatik doldurulur">
           <button class="pc-btn pc-small" data-action="fillToken">doldur</button></div></div>
       </details>
     </section>

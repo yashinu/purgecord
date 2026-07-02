@@ -116,10 +116,13 @@ export function initDmTab(ctx) {
     const jobs = buildJobs();
     if (!jobs.length) return log('error', 'Hedef DM yok (seçim/moda göre boş).');
 
-    if (!dryRun && !window.confirm(`${jobs.length} DM'de kendi mesajların silinecek. Devam?`)) return;
+    log('verb', `${jobs.length} DM işi kuruldu. Onay bekleniyor...`);
+    if (!dryRun && !window.confirm(`${jobs.length} DM'de kendi mesajların silinecek. Devam?`)) { log('warn', 'İptal edildi.'); return; }
+    log('verb', 'Onaylandı. Token/motor hazırlanıyor...');
 
     const { api, token } = ctx.buildApi();
-    if (!token) return log('error', 'Token yok.');
+    if (!token) return log('error', 'Token bulunamadı! Gelişmiş > Token alanına elle yapıştır.');
+    log('verb', `Token alındı (uzunluk ${token.length}). Silme başlıyor...`);
     ctx.makeEngine(api);
     ctx.startWatchdog();
     ctx.switchTab('log');
