@@ -189,3 +189,49 @@ test('runQueue estimatedTotal verilince grandTotal sabit kalır (sayfa başına 
   assert.equal(res.delCount, 2);
   assert.equal(res.grandTotal, 10); // tahmin sabit; +2 eklenmedi
 });
+
+test('onJobDone her job için çağrılır; jobDelStart delta bu DM\'de silineni verir', async () => {
+  const served = {};
+  const api = fakeApi(({ url, method }) => {
+    if (method === 'DELETE') return makeResp(204);
+    const ch = url.match(/channels\/(\w+)\//)[1];
+    if (!served[ch]) { served[ch] = true; return makeResp(200, [m(2, { channel_id: ch }), m(1, { channel_id: ch })]); }
+    return makeResp(200, []);
+  });
+  const done = [];
+  const engine = engineWith(api, { onJobDone: (job, s) => done.push({ ch: job.channelId, delta: s.delCount - s.jobDelStart }) });
+  await engine.runQueue([
+    { channelId: 'aaa', filters: { authorId: 'me' } },
+    { channelId: 'bbb', filters: { authorId: 'me' } },
+  ]);
+  assert.deepEqual(done, [{ ch: 'aaa', delta: 2 }, { ch: 'bbb', delta: 2 }]); // her DM'de 2, global değil
+});
+
+test('closeAfter: DM temizse DELETE /channels/{id} ile kapatılır', async () => {
+  const calls = [];
+  let served = false;
+  const api = fakeApi(({ url, method }) => {
+    calls.push({ url, method });
+    if (method === 'DELETE') return makeResp(204);
+    if (!served) { served = true; return makeResp(200, [m(2)]); }
+    return makeResp(200, []); // son kontrol: boş → temiz
+  });
+  const engine = engineWith(api);
+  await engine.runQueue([{ channelId: 'c', _dm: { type: 1 }, closeAfter: true, filters: { authorId: 'me' } }]);
+  assert.ok(calls.some((c) => c.method === 'DELETE' && c.url.endsWith('/channels/c'))); // kanal kapatma DELETE'i
+});
+
+test('closeAfter: DM temiz değilse (son kontrolde mesaj var) kapatılmaz', async () => {
+  const calls = [];
+  let getCount = 0;
+  const api = fakeApi(({ url, method }) => {
+    calls.push({ url, method });
+    if (method === 'DELETE') return makeResp(204);
+    getCount++;
+    if (getCount === 1) return makeResp(200, [m(2)]);
+    return makeResp(200, [m(5)]); // son kontrol: hâlâ mesaj → temiz değil
+  });
+  const engine = engineWith(api);
+  await engine.runQueue([{ channelId: 'c', _dm: { type: 1 }, closeAfter: true, filters: { authorId: 'me' } }]);
+  assert.ok(!calls.some((c) => c.method === 'DELETE' && c.url.endsWith('/channels/c'))); // kapatılmadı
+});

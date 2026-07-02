@@ -83,11 +83,13 @@ export function initDmTab(ctx) {
     const authorId = getAuthorId() || undefined;
     if (!authorId) log('warn', 'Kendi id\'niz alınamadı; yalnız kendi mesajlar filtresi zayıf olabilir.');
     const baseFilters = ctx.getFilters();
+    const closeAfter = el('closeDm')?.checked || false;
     return targets.map((d) => ({
       channelId: d.id,
       guildId: '@me',
       label: d.name,
       _dm: d,
+      closeAfter,
       filters: { ...baseFilters, authorId },
     }));
   }
@@ -105,10 +107,23 @@ export function initDmTab(ctx) {
     }
   }
 
-  ctx.onJobStart = (job) => { if (job.guildId === '@me' && job._dm) showFocus(job); };
+  ctx.onJobStart = (job) => {
+    if (job.guildId === '@me' && job._dm) {
+      log('info', `▶ DM: ${job._dm.name || job.channelId}${job._estTotal ? ` (~${job._estTotal} mesaj)` : ''}`);
+      showFocus(job);
+    }
+  };
   ctx.onProgress = (s) => {
     if (!el('focus').hidden && s.currentJob && s.currentJob._dm) {
-      el('focusProg').textContent = `silinen: ${s.delCount}`;
+      const done = s.delCount - (s.jobDelStart || 0); // bu DM'de silinen
+      const total = s.currentJob._estTotal;
+      el('focusProg').textContent = total ? `${done}/${total}` : `silinen: ${done}`;
+    }
+  };
+  ctx.onJobDone = (job, s) => {
+    if (job.guildId === '@me' && job._dm) {
+      const done = s.delCount - (s.jobDelStart || 0);
+      log('success', `✓ ${job._dm.name || job.channelId}: ${job._estTotal ? `${done}/${job._estTotal}` : done} silindi.`);
     }
   };
 

@@ -178,12 +178,16 @@
       <div class="pc-dm-modes" style="margin:6px 0">
         <label class="pc-check"><input type="checkbox" data-el="dmSelectAll"> T\xFCm\xFCn\xFC se\xE7</label>
         <label class="pc-check"><input type="checkbox" data-el="followDm"> DM'i Discord'da takip et</label>
+        <label class="pc-check"><input type="checkbox" data-el="closeDm"> Temizlenen DM'i kapat</label>
       </div>
       <div class="pc-hint">DM modunda yaln\u0131z <b>kendi</b> mesajlar\u0131n silinir. Kanal sekmesindeki filtreler burada da uygulan\u0131r.</div>
       <div class="pc-dm-list" data-el="dmList"></div>
     </section>
 
-    <section class="pc-view" data-view="log" hidden><pre id="pc-log"></pre></section>
+    <section class="pc-view" data-view="log" hidden>
+      <label class="pc-check" style="margin-bottom:8px"><input type="checkbox" data-el="autoScroll" checked> Logu takip et (son loga kayd\u0131r)</label>
+      <pre id="pc-log"></pre>
+    </section>
   </div>
 
   <div class="pc-focus" data-el="focus" hidden>
@@ -408,7 +412,7 @@
   var noop = () => {
   };
   var DeleteEngine = class {
-    constructor({ api, wait, log = noop, options = {}, onProgress = noop, onStart = noop, onStop = noop, onJobStart = noop, saveCheckpoint = noop }) {
+    constructor({ api, wait, log = noop, options = {}, onProgress = noop, onStart = noop, onStop = noop, onJobStart = noop, onJobDone = noop, saveCheckpoint = noop }) {
       this.api = api;
       this.wait = wait;
       this.log = log;
@@ -416,6 +420,7 @@
       this.onStart = onStart;
       this.onStop = onStop;
       this.onJobStart = onJobStart;
+      this.onJobDone = onJobDone;
       this.saveCheckpoint = saveCheckpoint;
       this.options = { deleteDelay: 1e3, searchDelay: 1e3, ...options };
       this.resetState();
@@ -457,7 +462,10 @@
           const resp = await this.api.request(`${base}?${params.toString()}`, { noRetry: true });
           if (resp.ok) {
             const data = await resp.json();
-            if (typeof data.total_results === "number") total += data.total_results;
+            if (typeof data.total_results === "number") {
+              job._estTotal = data.total_results;
+              total += data.total_results;
+            }
           }
         } catch (err) {
           if (err?.name === "AbortError") break;
@@ -477,6 +485,8 @@
         if (!this.state.running) break;
         this.state.currentJob = job;
         this.state.before = job.before || void 0;
+        this.state.jobDelStart = this.state.delCount;
+        this.state.jobFailStart = this.state.failCount;
         this.onJobStart(job, this.state);
         try {
           if (job.guildId && job.guildId !== "@me" && !job.channelId) {
@@ -484,6 +494,7 @@
           } else {
             await this.runCursorJob(job, { dryRun });
           }
+          this.onJobDone(job, this.state);
         } catch (err) {
           if (err?.name === "AbortError") {
             this.log("warn", "\u0130ptal edildi.");
@@ -543,6 +554,35 @@
         });
         if (page.length < 100) break;
         await this.wait(this.options.searchDelay);
+      }
+      const jobHadFailures = this.state.failCount > (this.state.jobFailStart ?? 0);
+      if (!dryRun && job.closeAfter && job._dm?.type === 1 && this.state.running && !jobHadFailures) {
+        await this.closeDmIfClean(job);
+      }
+    }
+    /** Son kontrol: en yeni sayfada filtreye uyan mesaj kalmadıysa DM'i kapatır (DELETE /channels/{id}). */
+    async closeDmIfClean(job) {
+      const label = job.label || job.channelId;
+      try {
+        const resp = await this.api.request(`${API_BASE}/channels/${job.channelId}/messages?limit=100`, { noRetry: true });
+        if (!resp.ok) return false;
+        const page = await resp.json();
+        if (!Array.isArray(page)) return false;
+        const { toDelete } = filterMessages(page, job.filters || {});
+        if (toDelete.length > 0) {
+          this.log("warn", `${label}: h\xE2l\xE2 filtreye uyan mesaj var, DM kapat\u0131lmad\u0131.`);
+          return false;
+        }
+        const del = await this.api.request(`${API_BASE}/channels/${job.channelId}`, { method: "DELETE" });
+        if (del.ok || del.status === 404) {
+          this.log("success", `${label}: temiz \u2014 DM kapat\u0131ld\u0131.`);
+          return true;
+        }
+        this.log("warn", `${label}: DM kapat\u0131lamad\u0131 (durum ${del.status}).`);
+        return false;
+      } catch (err) {
+        if (err?.name === "AbortError") throw err;
+        return false;
       }
     }
     /** Search stratejisi — sunucu-geneli (guildId, tek kanal yok). Boş sayfa doğrulamalı. */
@@ -847,11 +887,13 @@
       const authorId = getAuthorId() || void 0;
       if (!authorId) log("warn", "Kendi id'niz al\u0131namad\u0131; yaln\u0131z kendi mesajlar filtresi zay\u0131f olabilir.");
       const baseFilters = ctx.getFilters();
+      const closeAfter = el("closeDm")?.checked || false;
       return targets.map((d) => ({
         channelId: d.id,
         guildId: "@me",
         label: d.name,
         _dm: d,
+        closeAfter,
         filters: { ...baseFilters, authorId }
       }));
     }
@@ -867,11 +909,22 @@
       }
     }
     ctx.onJobStart = (job) => {
-      if (job.guildId === "@me" && job._dm) showFocus(job);
+      if (job.guildId === "@me" && job._dm) {
+        log("info", `\u25B6 DM: ${job._dm.name || job.channelId}${job._estTotal ? ` (~${job._estTotal} mesaj)` : ""}`);
+        showFocus(job);
+      }
     };
     ctx.onProgress = (s) => {
       if (!el("focus").hidden && s.currentJob && s.currentJob._dm) {
-        el("focusProg").textContent = `silinen: ${s.delCount}`;
+        const done = s.delCount - (s.jobDelStart || 0);
+        const total = s.currentJob._estTotal;
+        el("focusProg").textContent = total ? `${done}/${total}` : `silinen: ${done}`;
+      }
+    };
+    ctx.onJobDone = (job, s) => {
+      if (job.guildId === "@me" && job._dm) {
+        const done = s.delCount - (s.jobDelStart || 0);
+        log("success", `\u2713 ${job._dm.name || job.channelId}: ${job._estTotal ? `${done}/${job._estTotal}` : done} silindi.`);
       }
     };
     async function runDm({ dryRun }) {
@@ -937,7 +990,7 @@
       line.textContent = args.map((a) => typeof a === "object" ? JSON.stringify(a) : a).join(" ");
       logEl.appendChild(line);
       const scroller = logEl.closest(".pc-body");
-      if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      if (scroller && el("autoScroll")?.checked !== false) scroller.scrollTop = scroller.scrollHeight;
       if (type === "error") console.error("[purgecord]", ...args);
     }
     function mountBtn() {
@@ -1074,6 +1127,7 @@
         },
         onProgress: (s) => renderProgress(s),
         onJobStart: (job) => ctx.onJobStart && ctx.onJobStart(job),
+        onJobDone: (job, s) => ctx.onJobDone && ctx.onJobDone(job, s),
         saveCheckpoint: (data) => checkpoint.save({ ...data, ts: Date.now() })
       });
       return engine;
@@ -1201,7 +1255,9 @@
       runDm: null,
       // Task 14 doldurur
       onJobStart: null,
-      // Task 14 doldurur (focus kartı)
+      // Task 14 doldurur (focus kartı + DM log)
+      onJobDone: null,
+      // Task 14 doldurur (DM başı sonuç logu + DM kapatma)
       onProgress: null
       // Task 14 doldurur (focus kartı ilerlemesi)
     };

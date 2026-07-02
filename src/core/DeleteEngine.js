@@ -5,7 +5,7 @@ import { oldestId } from './snowflake.js';
 const noop = () => {};
 
 export class DeleteEngine {
-  constructor({ api, wait, log = noop, options = {}, onProgress = noop, onStart = noop, onStop = noop, onJobStart = noop, saveCheckpoint = noop }) {
+  constructor({ api, wait, log = noop, options = {}, onProgress = noop, onStart = noop, onStop = noop, onJobStart = noop, onJobDone = noop, saveCheckpoint = noop }) {
     this.api = api;
     this.wait = wait;
     this.log = log;
@@ -13,6 +13,7 @@ export class DeleteEngine {
     this.onStart = onStart;
     this.onStop = onStop;
     this.onJobStart = onJobStart;
+    this.onJobDone = onJobDone;
     this.saveCheckpoint = saveCheckpoint;
     this.options = { deleteDelay: 1000, searchDelay: 1000, ...options };
     this.resetState();
@@ -54,7 +55,10 @@ export class DeleteEngine {
         const resp = await this.api.request(`${base}?${params.toString()}`, { noRetry: true });
         if (resp.ok) {
           const data = await resp.json();
-          if (typeof data.total_results === 'number') total += data.total_results;
+          if (typeof data.total_results === 'number') {
+            job._estTotal = data.total_results; // bu DM'in tahmini toplamı (focus kartı 16/340 için)
+            total += data.total_results;
+          }
         }
       } catch (err) {
         if (err?.name === 'AbortError') break;
@@ -77,6 +81,8 @@ export class DeleteEngine {
       if (!this.state.running) break;
       this.state.currentJob = job;
       this.state.before = job.before || undefined;
+      this.state.jobDelStart = this.state.delCount; // bu job'a girerken silinen sayısı
+      this.state.jobFailStart = this.state.failCount;
       this.onJobStart(job, this.state);
       try {
         if (job.guildId && job.guildId !== '@me' && !job.channelId) {
@@ -84,6 +90,7 @@ export class DeleteEngine {
         } else {
           await this.runCursorJob(job, { dryRun });
         }
+        this.onJobDone(job, this.state); // bu job bitti (delta = delCount - jobDelStart)
       } catch (err) {
         if (err?.name === 'AbortError') { this.log('warn', 'İptal edildi.'); break; }
         this.log('error', `Job hatası: ${err?.message || err}`);
@@ -148,6 +155,32 @@ export class DeleteEngine {
 
       if (page.length < 100) break; // son (kısmi) sayfa işlendi → bitti
       await this.wait(this.options.searchDelay);
+    }
+
+    // Temizlenen DM'i kapat: yalnız 1-1 DM, iş normal tamamlandıysa ve bu job'da silme hatası yoksa
+    const jobHadFailures = this.state.failCount > (this.state.jobFailStart ?? 0);
+    if (!dryRun && job.closeAfter && job._dm?.type === 1 && this.state.running && !jobHadFailures) {
+      await this.closeDmIfClean(job);
+    }
+  }
+
+  /** Son kontrol: en yeni sayfada filtreye uyan mesaj kalmadıysa DM'i kapatır (DELETE /channels/{id}). */
+  async closeDmIfClean(job) {
+    const label = job.label || job.channelId;
+    try {
+      const resp = await this.api.request(`${API_BASE}/channels/${job.channelId}/messages?limit=100`, { noRetry: true });
+      if (!resp.ok) return false;
+      const page = await resp.json();
+      if (!Array.isArray(page)) return false;
+      const { toDelete } = filterMessages(page, job.filters || {});
+      if (toDelete.length > 0) { this.log('warn', `${label}: hâlâ filtreye uyan mesaj var, DM kapatılmadı.`); return false; }
+      const del = await this.api.request(`${API_BASE}/channels/${job.channelId}`, { method: 'DELETE' });
+      if (del.ok || del.status === 404) { this.log('success', `${label}: temiz — DM kapatıldı.`); return true; }
+      this.log('warn', `${label}: DM kapatılamadı (durum ${del.status}).`);
+      return false;
+    } catch (err) {
+      if (err?.name === 'AbortError') throw err;
+      return false;
     }
   }
 

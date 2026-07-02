@@ -41,8 +41,9 @@ export function initUI() {
     line.className = `pc-log-line pc-log-${type}`;
     line.textContent = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' ');
     logEl.appendChild(line);
+    // "Logu takip et" açıksa (varsayılan) son loga kaydır
     const scroller = logEl.closest('.pc-body');
-    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    if (scroller && el('autoScroll')?.checked !== false) scroller.scrollTop = scroller.scrollHeight;
     if (type === 'error') console.error('[purgecord]', ...args);
   }
 
@@ -174,6 +175,7 @@ export function initUI() {
       onStop: () => { setRunningUI(false); watchdog?.stop(); },
       onProgress: (s) => renderProgress(s),
       onJobStart: (job) => ctx.onJobStart && ctx.onJobStart(job),
+      onJobDone: (job, s) => ctx.onJobDone && ctx.onJobDone(job, s),
       saveCheckpoint: (data) => checkpoint.save({ ...data, ts: Date.now() }),
     });
     return engine;
@@ -291,7 +293,8 @@ export function initUI() {
     getEngine: () => engine,
     setEngine: (e) => { engine = e; },
     runDm: null,       // Task 14 doldurur
-    onJobStart: null,  // Task 14 doldurur (focus kartı)
+    onJobStart: null,  // Task 14 doldurur (focus kartı + DM log)
+    onJobDone: null,   // Task 14 doldurur (DM başı sonuç logu + DM kapatma)
     onProgress: null,  // Task 14 doldurur (focus kartı ilerlemesi)
   };
 

@@ -85,12 +85,16 @@ export const panelHtml = `
       <div class="pc-dm-modes" style="margin:6px 0">
         <label class="pc-check"><input type="checkbox" data-el="dmSelectAll"> Tümünü seç</label>
         <label class="pc-check"><input type="checkbox" data-el="followDm"> DM'i Discord'da takip et</label>
+        <label class="pc-check"><input type="checkbox" data-el="closeDm"> Temizlenen DM'i kapat</label>
       </div>
       <div class="pc-hint">DM modunda yalnız <b>kendi</b> mesajların silinir. Kanal sekmesindeki filtreler burada da uygulanır.</div>
       <div class="pc-dm-list" data-el="dmList"></div>
     </section>
 
-    <section class="pc-view" data-view="log" hidden><pre id="pc-log"></pre></section>
+    <section class="pc-view" data-view="log" hidden>
+      <label class="pc-check" style="margin-bottom:8px"><input type="checkbox" data-el="autoScroll" checked> Logu takip et (son loga kaydır)</label>
+      <pre id="pc-log"></pre>
+    </section>
   </div>
 
   <div class="pc-focus" data-el="focus" hidden>
