@@ -2,6 +2,10 @@ import { listDms } from '../core/DmDiscovery.js';
 import { getAuthorId } from '../discord/token.js';
 import { CHANNEL_TYPE } from '../discord/constants.js';
 
+// PP'si olmayan kullanıcılar için Discord varsayılan avatarı
+const DEFAULT_AVATAR = 'https://discord.com/assets/2ccd8ae8b2379360.png?size=64';
+const avatarSrc = (d) => (d && d.icon && /^https:\/\//.test(d.icon)) ? d.icon : DEFAULT_AVATAR;
+
 export function initDmTab(ctx) {
   const { panel, el, log } = ctx;
 
@@ -35,13 +39,11 @@ export function initDmTab(ctx) {
         `<div class="pc-dm-time">${fmtTime(d.lastTime)}</div></div>` +
         `<span class="pc-badge">${badge}</span>`;
       // Avatar: URL'yi HTML olarak ayrıştırmadan property atamasıyla güvenli kur (XSS önlemi)
-      if (d.icon && /^https:\/\//.test(d.icon)) {
-        const img = document.createElement('img');
-        img.className = 'pc-dm-avatar';
-        img.alt = '';
-        img.src = d.icon;
-        row.querySelector('[data-avatar]').replaceWith(img);
-      }
+      const img = document.createElement('img');
+      img.className = 'pc-dm-avatar';
+      img.alt = '';
+      img.src = avatarSrc(d); // PP yoksa varsayılan avatar (siyah kalmasın)
+      row.querySelector('[data-avatar]').replaceWith(img);
       const cb = row.querySelector('input');
       cb.addEventListener('change', () => {
         if (cb.checked) selected.add(d.id); else selected.delete(d.id);
@@ -98,7 +100,7 @@ export function initDmTab(ctx) {
   function showFocus(job) {
     const d = job._dm || {};
     el('focus').hidden = false;
-    el('focusAvatar').src = (d.icon && /^https:\/\//.test(d.icon)) ? d.icon : '';
+    el('focusAvatar').src = avatarSrc(d);
     el('focusName').textContent = d.name || job.channelId;
     el('focusProg').textContent = 'başlıyor...';
     if (el('followDm').checked) {

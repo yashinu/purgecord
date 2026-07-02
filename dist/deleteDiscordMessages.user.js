@@ -820,6 +820,8 @@
   }
 
   // src/ui/dmTab.js
+  var DEFAULT_AVATAR = "https://discord.com/assets/2ccd8ae8b2379360.png?size=64";
+  var avatarSrc = (d) => d && d.icon && /^https:\/\//.test(d.icon) ? d.icon : DEFAULT_AVATAR;
   function initDmTab(ctx) {
     const { panel, el, log } = ctx;
     let dms = [];
@@ -842,13 +844,11 @@
         row.className = "pc-dm-row";
         const badge = d.type === CHANNEL_TYPE.GROUP_DM ? "Grup" : "DM";
         row.innerHTML = `<input type="checkbox" ${selected.has(d.id) ? "checked" : ""}><div class="pc-dm-avatar" data-avatar></div><div class="pc-dm-meta"><div class="pc-dm-name pc-priv">${escapeHtml(d.name)}</div><div class="pc-dm-time">${fmtTime(d.lastTime)}</div></div><span class="pc-badge">${badge}</span>`;
-        if (d.icon && /^https:\/\//.test(d.icon)) {
-          const img = document.createElement("img");
-          img.className = "pc-dm-avatar";
-          img.alt = "";
-          img.src = d.icon;
-          row.querySelector("[data-avatar]").replaceWith(img);
-        }
+        const img = document.createElement("img");
+        img.className = "pc-dm-avatar";
+        img.alt = "";
+        img.src = avatarSrc(d);
+        row.querySelector("[data-avatar]").replaceWith(img);
         const cb = row.querySelector("input");
         cb.addEventListener("change", () => {
           if (cb.checked) selected.add(d.id);
@@ -898,7 +898,7 @@
     function showFocus(job) {
       const d = job._dm || {};
       el("focus").hidden = false;
-      el("focusAvatar").src = d.icon && /^https:\/\//.test(d.icon) ? d.icon : "";
+      el("focusAvatar").src = avatarSrc(d);
       el("focusName").textContent = d.name || job.channelId;
       el("focusProg").textContent = "ba\u015Fl\u0131yor...";
       if (el("followDm").checked) {
@@ -971,8 +971,15 @@
     t.innerHTML = html.trim();
     return t.firstElementChild;
   }
-  function findToolbar() {
-    return document.querySelector('#app-mount [class*="toolbar_"]') || document.querySelector('#app-mount [class*="-toolbar"]');
+  function findMountPoint() {
+    const help = document.querySelector('#app-mount a[href*="support.discord.com"], #app-mount a[href*="//discord.com/help"]');
+    if (help && help.parentElement) return { host: help.parentElement, before: help };
+    const bars = [...document.querySelectorAll('#app-mount [class*="toolbar_"]')].filter((b) => b.offsetParent !== null);
+    if (bars.length) {
+      bars.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+      return { host: bars[0], before: null };
+    }
+    return null;
   }
   function initUI() {
     insertCss(styles);
@@ -992,8 +999,11 @@
       if (type === "error") console.error("[purgecord]", ...args);
     }
     function mountBtn() {
-      const tb = findToolbar();
-      if (tb && !tb.contains(btn)) tb.append(btn);
+      const mp = findMountPoint();
+      if (mp && !mp.host.contains(btn)) {
+        if (mp.before) mp.host.insertBefore(btn, mp.before);
+        else mp.host.append(btn);
+      }
     }
     mountBtn();
     const appRoot = document.querySelector("#app-mount") || document.body;
@@ -1259,7 +1269,12 @@
       onProgress: null
       // Task 14 doldurur (focus kartı ilerlemesi)
     };
-    initDmTab(ctx);
+    try {
+      initDmTab(ctx);
+    } catch (err) {
+      console.error("[purgecord] initDmTab hatas\u0131:", err);
+      log("error", `DM sekmesi kurulamad\u0131: ${err?.message || err}. Sayfay\u0131 yenileyip tekrar dene.`);
+    }
     log("info", "Purgecord haz\u0131r. Bir sekme se\xE7 ve ba\u015Flat.");
     return ctx;
   }

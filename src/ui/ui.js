@@ -19,9 +19,18 @@ function createEl(html) {
   t.innerHTML = html.trim();
   return t.firstElementChild;
 }
-function findToolbar() {
-  return document.querySelector('#app-mount [class*="toolbar_"]') ||
-         document.querySelector('#app-mount [class*="-toolbar"]');
+// Butonu koyacağımız yeri bulur: öncelik üst navbar'daki yardım (help) düğmesinin yanı.
+function findMountPoint() {
+  // 1) Üst navbar: destek/yardım linki (inbox & help kümesi burada)
+  const help = document.querySelector('#app-mount a[href*="support.discord.com"], #app-mount a[href*="//discord.com/help"]');
+  if (help && help.parentElement) return { host: help.parentElement, before: help };
+  // 2) Yedek: en üstteki (en küçük top offset) görünür toolbar
+  const bars = [...document.querySelectorAll('#app-mount [class*="toolbar_"]')].filter((b) => b.offsetParent !== null);
+  if (bars.length) {
+    bars.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+    return { host: bars[0], before: null };
+  }
+  return null;
 }
 
 export function initUI() {
@@ -49,9 +58,11 @@ export function initUI() {
 
   // --- buton mount + yeniden-mount ---
   function mountBtn() {
-    const tb = findToolbar();
-    // Araç çubuğunun sağ ucuna (inbox/help kümesine) ekle
-    if (tb && !tb.contains(btn)) tb.append(btn);
+    const mp = findMountPoint();
+    if (mp && !mp.host.contains(btn)) {
+      if (mp.before) mp.host.insertBefore(btn, mp.before); // help'in soluna (üst navbar)
+      else mp.host.append(btn);
+    }
   }
   mountBtn();
   const appRoot = document.querySelector('#app-mount') || document.body;
@@ -299,7 +310,12 @@ export function initUI() {
     onProgress: null,  // Task 14 doldurur (focus kartı ilerlemesi)
   };
 
-  initDmTab(ctx);
+  try {
+    initDmTab(ctx);
+  } catch (err) {
+    console.error('[purgecord] initDmTab hatası:', err);
+    log('error', `DM sekmesi kurulamadı: ${err?.message || err}. Sayfayı yenileyip tekrar dene.`);
+  }
 
   log('info', 'Purgecord hazır. Bir sekme seç ve başlat.');
   return ctx;
