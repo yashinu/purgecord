@@ -1,6 +1,6 @@
 import { initUI } from './ui/ui.js';
 
-const VERSION = '0.3.4';
+const VERSION = '0.3.5';
 
 function boot() {
   if (window.__purgecord_loaded) return;

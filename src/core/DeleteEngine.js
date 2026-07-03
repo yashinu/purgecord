@@ -45,6 +45,7 @@ export class DeleteEngine {
    */
   async estimateTotal(jobs) {
     let total = 0;
+    let anyOk = false; // did search work for at least one job?
     for (const job of jobs) {
       try {
         const params = new URLSearchParams();
@@ -57,6 +58,7 @@ export class DeleteEngine {
           : `${API_BASE}/channels/${job.channelId}/messages/search`;
         const resp = await this.api.request(`${base}?${params.toString()}`, { noRetry: true });
         if (resp.ok) {
+          anyOk = true;
           const data = await resp.json();
           if (typeof data.total_results === 'number') {
             job._estTotal = data.total_results; // this DM's estimated total (for the "16/340" focus card)
@@ -68,7 +70,7 @@ export class DeleteEngine {
         /* estimate is best-effort; ignore other errors */
       }
     }
-    return total;
+    return anyOk ? total : -1; // -1 = search unavailable (caller should paginate for an exact count)
   }
 
   /** Sequential job queue. */

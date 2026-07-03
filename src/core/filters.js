@@ -3,6 +3,15 @@ import { dateToSnowflake } from './snowflake.js';
 
 const LINK_RE = /https?:\/\//i;
 
+/**
+ * True when the filter uses options Discord's search API can't count exactly
+ * (regex, date range, message-id range). For those, the search-based estimate
+ * would be inaccurate, so an exact count needs full pagination.
+ */
+export function searchCannotCount(o = {}) {
+  return !!(o.pattern || o.minDate || o.maxDate || o.minId || o.maxId);
+}
+
 function isDeletable(msg, o, regex, minSnow, maxSnow) {
   if (!isDeletableType(msg.type)) return false;
   if (msg.pinned && !o.includePinned) return false;

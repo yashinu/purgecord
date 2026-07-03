@@ -3,6 +3,7 @@ import { buttonHtml, panelHtml } from './template.html.js';
 import { makeDraggable, makeResizable } from './DragResize.js';
 import { ApiClient } from '../core/ApiClient.js';
 import { DeleteEngine } from '../core/DeleteEngine.js';
+import { searchCannotCount } from '../core/filters.js';
 import { Checkpoint } from '../core/Checkpoint.js';
 import { Watchdog } from '../core/Watchdog.js';
 import { getToken, getAuthorId, parseIdsFromUrl, looksLikeToken } from '../discord/token.js';
@@ -289,22 +290,35 @@ export function initUI() {
 
     log('verb', t('jobs_built', { n: jobs.length, ch: channelIds.length, g: guildId || '@me' }));
     if (!dryRun && !window.confirm(confirmMsg)) { log('warn', t('canceled_no_confirm')); return; }
-    log('verb', t('confirmed_prep'));
 
     const { api, token } = buildApi();
     if (!token) return; // buildApi already logged a detailed error
-    log('verb', t('token_got_engine', { n: token.length }));
     makeEngine(api);
-    startWatchdog();
-
     switchTab('log');
-    log('info', dryRun ? t('dryrun_started') : t('delete_started'));
-    // One-time read-only total estimate for the progress denominator (best-effort; few jobs only)
-    const estimatedTotal = (!dryRun && jobs.length <= 10) ? await engine.estimateTotal(jobs) : 0;
+
+    if (dryRun) {
+      // Count only: fetch the total fast via the search estimate; paginate only if search is unavailable.
+      log('info', t('counting'));
+      const est = await engine.estimateTotal(jobs);
+      if (est >= 0) {
+        log('success', searchCannotCount(filters) ? t('dryrun_done_approx', { n: est }) : t('dryrun_done', { n: est }));
+      } else {
+        startWatchdog();
+        await engine.runQueue(jobs, { dryRun: true });
+        log('success', t('dryrun_done', { n: engine.state.grandTotal }));
+      }
+      return;
+    }
+
+    // Delete flow
+    log('verb', t('token_got_engine', { n: token.length }));
+    startWatchdog();
+    log('info', t('delete_started'));
+    const estimatedTotal = jobs.length <= 10 ? await engine.estimateTotal(jobs) : 0;
     if (estimatedTotal > 0) log('verb', t('est_total', { n: estimatedTotal }));
-    await engine.runQueue(jobs, { dryRun, estimatedTotal });
-    if (dryRun) log('success', t('dryrun_done', { n: engine.state.grandTotal }));
-    else { log('success', t('done_summary', { del: engine.state.delCount, fail: engine.state.failCount })); checkpoint.clear(); }
+    await engine.runQueue(jobs, { dryRun: false, estimatedTotal });
+    log('success', t('done_summary', { del: engine.state.delCount, fail: engine.state.failCount }));
+    checkpoint.clear();
   }
 
   // --- start/dry/stop dispatch (by active tab) ---

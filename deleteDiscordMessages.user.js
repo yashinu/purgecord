@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/yashinu/purgecord
-// @version      0.3.4
+// @version      0.3.5
 // @description  Bulk delete Discord messages & DMs (based on undiscord, hardened)
 // @author       yashinu
 // @homepageURL  https://github.com/yashinu/purgecord
@@ -181,7 +181,7 @@
       </div>
       <div class="pc-dm-modes" style="margin:6px 0">
         <label class="pc-check"><input type="checkbox" data-el="dmSelectAll"> {{select_all}}</label>
-        <label class="pc-check"><input type="checkbox" data-el="followDm"> {{follow_dm}}</label>
+        <label class="pc-check"><input type="checkbox" data-el="followDm" checked> {{follow_dm}}</label>
         <label class="pc-check"><input type="checkbox" data-el="closeDm"> {{close_dm}}</label>
       </div>
       <div class="pc-hint">{{dm_hint}}</div>
@@ -393,6 +393,8 @@
       delete_started: "Deletion started.",
       est_total: "Estimated total: ~{n} messages.",
       dryrun_done: "Dry-run done: {n} messages match the filter.",
+      dryrun_done_approx: "Count (estimate): ~{n} messages match the filter.",
+      counting: "Counting...",
       done_summary: "Done. Deleted: {del}, failed: {fail}.",
       unexpected_error: "Unexpected error: {err}",
       dm_tab_not_ready: "DM tab is not ready.",
@@ -512,6 +514,8 @@
       delete_started: "Silme ba\u015Flad\u0131.",
       est_total: "Tahmini toplam: ~{n} mesaj.",
       dryrun_done: "Dry-run bitti: {n} mesaj filtreye uyuyor.",
+      dryrun_done_approx: "Say\u0131m (tahmini): ~{n} mesaj filtreye uyuyor.",
+      counting: "Say\u0131l\u0131yor...",
       done_summary: "Bitti. Silinen: {del}, ba\u015Far\u0131s\u0131z: {fail}.",
       unexpected_error: "Beklenmeyen hata: {err}",
       dm_tab_not_ready: "DM sekmesi haz\u0131r de\u011Fil.",
@@ -706,6 +710,9 @@
 
   // src/core/filters.js
   var LINK_RE = /https?:\/\//i;
+  function searchCannotCount(o = {}) {
+    return !!(o.pattern || o.minDate || o.maxDate || o.minId || o.maxId);
+  }
   function isDeletable(msg, o, regex, minSnow, maxSnow) {
     if (!isDeletableType(msg.type)) return false;
     if (msg.pinned && !o.includePinned) return false;
@@ -783,6 +790,7 @@
      */
     async estimateTotal(jobs) {
       let total = 0;
+      let anyOk = false;
       for (const job of jobs) {
         try {
           const params = new URLSearchParams();
@@ -793,6 +801,7 @@
           const base = job.guildId && job.guildId !== "@me" ? `${API_BASE}/guilds/${job.guildId}/messages/search` : `${API_BASE}/channels/${job.channelId}/messages/search`;
           const resp = await this.api.request(`${base}?${params.toString()}`, { noRetry: true });
           if (resp.ok) {
+            anyOk = true;
             const data = await resp.json();
             if (typeof data.total_results === "number") {
               job._estTotal = data.total_results;
@@ -803,7 +812,7 @@
           if (err?.name === "AbortError") break;
         }
       }
-      return total;
+      return anyOk ? total : -1;
     }
     /** Sequential job queue. */
     async runQueue(jobs, { dryRun = false, estimatedTotal = 0 } = {}) {
@@ -1271,24 +1280,32 @@
         log("warn", t("canceled"));
         return;
       }
-      log("verb", t("confirmed_prep"));
       const { api, token } = ctx.buildApi();
       if (!token) return;
-      log("verb", t("token_got_engine", { n: token.length }));
       ctx.makeEngine(api);
-      ctx.startWatchdog();
       ctx.switchTab("log");
-      log("info", t("dms_processing", { n: jobs.length, mode: dryRun ? t("mode_dryrun") : t("mode_delete") }));
       const engine = ctx.getEngine();
       try {
-        const estimatedTotal = !dryRun && jobs.length <= 10 ? await engine.estimateTotal(jobs) : 0;
-        if (estimatedTotal > 0) log("verb", t("est_total", { n: estimatedTotal }));
-        await engine.runQueue(jobs, { dryRun, estimatedTotal });
-        if (dryRun) log("success", t("dryrun_total", { n: engine.state.grandTotal }));
-        else {
-          log("success", t("dm_all_done", { del: engine.state.delCount, fail: engine.state.failCount }));
-          ctx.checkpoint.clear();
+        if (dryRun) {
+          log("info", t("counting"));
+          const est = await engine.estimateTotal(jobs);
+          if (est >= 0) {
+            log("success", searchCannotCount(jobs[0].filters) ? t("dryrun_done_approx", { n: est }) : t("dryrun_total", { n: est }));
+          } else {
+            ctx.startWatchdog();
+            await engine.runQueue(jobs, { dryRun: true });
+            log("success", t("dryrun_total", { n: engine.state.grandTotal }));
+          }
+          return;
         }
+        log("verb", t("token_got_engine", { n: token.length }));
+        ctx.startWatchdog();
+        log("info", t("dms_processing", { n: jobs.length, mode: t("mode_delete") }));
+        const estimatedTotal = jobs.length <= 10 ? await engine.estimateTotal(jobs) : 0;
+        if (estimatedTotal > 0) log("verb", t("est_total", { n: estimatedTotal }));
+        await engine.runQueue(jobs, { dryRun: false, estimatedTotal });
+        log("success", t("dm_all_done", { del: engine.state.delCount, fail: engine.state.failCount }));
+        ctx.checkpoint.clear();
       } catch (err) {
         log("error", t("dm_error", { err: err?.message || err }));
       } finally {
@@ -1567,22 +1584,30 @@
         log("warn", t("canceled_no_confirm"));
         return;
       }
-      log("verb", t("confirmed_prep"));
       const { api, token } = buildApi();
       if (!token) return;
-      log("verb", t("token_got_engine", { n: token.length }));
       makeEngine(api);
-      startWatchdog();
       switchTab("log");
-      log("info", dryRun ? t("dryrun_started") : t("delete_started"));
-      const estimatedTotal = !dryRun && jobs.length <= 10 ? await engine.estimateTotal(jobs) : 0;
-      if (estimatedTotal > 0) log("verb", t("est_total", { n: estimatedTotal }));
-      await engine.runQueue(jobs, { dryRun, estimatedTotal });
-      if (dryRun) log("success", t("dryrun_done", { n: engine.state.grandTotal }));
-      else {
-        log("success", t("done_summary", { del: engine.state.delCount, fail: engine.state.failCount }));
-        checkpoint.clear();
+      if (dryRun) {
+        log("info", t("counting"));
+        const est = await engine.estimateTotal(jobs);
+        if (est >= 0) {
+          log("success", searchCannotCount(filters) ? t("dryrun_done_approx", { n: est }) : t("dryrun_done", { n: est }));
+        } else {
+          startWatchdog();
+          await engine.runQueue(jobs, { dryRun: true });
+          log("success", t("dryrun_done", { n: engine.state.grandTotal }));
+        }
+        return;
       }
+      log("verb", t("token_got_engine", { n: token.length }));
+      startWatchdog();
+      log("info", t("delete_started"));
+      const estimatedTotal = jobs.length <= 10 ? await engine.estimateTotal(jobs) : 0;
+      if (estimatedTotal > 0) log("verb", t("est_total", { n: estimatedTotal }));
+      await engine.runQueue(jobs, { dryRun: false, estimatedTotal });
+      log("success", t("done_summary", { del: engine.state.delCount, fail: engine.state.failCount }));
+      checkpoint.clear();
     }
     function dispatch({ dryRun }) {
       const active = panel.querySelector(".pc-tab.is-active")?.dataset.tab;
@@ -1657,7 +1682,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.3.4";
+  var VERSION = "0.3.5";
   function boot() {
     if (window.__purgecord_loaded) return;
     window.__purgecord_loaded = true;

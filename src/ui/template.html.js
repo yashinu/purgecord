@@ -87,7 +87,7 @@ export const panelHtml = `
       </div>
       <div class="pc-dm-modes" style="margin:6px 0">
         <label class="pc-check"><input type="checkbox" data-el="dmSelectAll"> {{select_all}}</label>
-        <label class="pc-check"><input type="checkbox" data-el="followDm"> {{follow_dm}}</label>
+        <label class="pc-check"><input type="checkbox" data-el="followDm" checked> {{follow_dm}}</label>
         <label class="pc-check"><input type="checkbox" data-el="closeDm"> {{close_dm}}</label>
       </div>
       <div class="pc-hint">{{dm_hint}}</div>

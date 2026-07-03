@@ -177,6 +177,28 @@ test('estimateTotal search total_results değerlerini toplar', async () => {
   assert.ok(api.calls.some(c => c.url.includes('author_id=me')));
 });
 
+test('estimateTotal search hiç çalışmazsa -1 döner (çağıran sayfalamaya düşmeli)', async () => {
+  // Search endpoint her job için hata verir (ör. index yok / 403) → tahmin alınamaz.
+  const api = fakeApi(() => makeResp(403, { message: 'no' }));
+  const engine = engineWith(api);
+  const total = await engine.estimateTotal([{ channelId: 'c', filters: { authorId: 'me' } }]);
+  assert.equal(total, -1);
+});
+
+test('estimateTotal en az bir job başarılıysa toplamı döner (-1 değil)', async () => {
+  // aaa: search 403 (başarısız), bbb: search 200 total_results=7 → toplam 7 dönmeli, -1 değil.
+  const api = fakeApi(({ url }) => {
+    if (url.includes('/channels/bbb/messages/search')) return makeResp(200, { total_results: 7, messages: [] });
+    return makeResp(403, { message: 'no' });
+  });
+  const engine = engineWith(api);
+  const total = await engine.estimateTotal([
+    { channelId: 'aaa', filters: { authorId: 'me' } },
+    { channelId: 'bbb', filters: { authorId: 'me' } },
+  ]);
+  assert.equal(total, 7);
+});
+
 test('runQueue estimatedTotal verilince grandTotal sabit kalır (sayfa başına biriktirmez)', async () => {
   let served = false;
   const api = fakeApi(({ method }) => {

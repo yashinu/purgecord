@@ -1,6 +1,7 @@
 import { listDms } from '../core/DmDiscovery.js';
 import { getAuthorId } from '../discord/token.js';
 import { CHANNEL_TYPE } from '../discord/constants.js';
+import { searchCannotCount } from '../core/filters.js';
 import { t } from '../i18n.js';
 
 // Discord default avatar for users without a profile picture
@@ -139,24 +140,37 @@ export function initDmTab(ctx) {
 
     log('verb', t('dm_jobs_built', { n: jobs.length }));
     if (!dryRun && !window.confirm(t('confirm_dms', { n: jobs.length }))) { log('warn', t('canceled')); return; }
-    log('verb', t('confirmed_prep'));
 
     const { api, token } = ctx.buildApi();
     if (!token) return; // buildApi logged the error
-    log('verb', t('token_got_engine', { n: token.length }));
     ctx.makeEngine(api);
-    ctx.startWatchdog();
     ctx.switchTab('log');
-    log('info', t('dms_processing', { n: jobs.length, mode: dryRun ? t('mode_dryrun') : t('mode_delete') }));
-
     const engine = ctx.getEngine();
+
     try {
-      // One-time read-only total estimate for the progress denominator (few DMs only)
-      const estimatedTotal = (!dryRun && jobs.length <= 10) ? await engine.estimateTotal(jobs) : 0;
+      if (dryRun) {
+        // Count only: fetch the total fast via the search estimate; paginate only if search is unavailable.
+        log('info', t('counting'));
+        const est = await engine.estimateTotal(jobs);
+        if (est >= 0) {
+          log('success', searchCannotCount(jobs[0].filters) ? t('dryrun_done_approx', { n: est }) : t('dryrun_total', { n: est }));
+        } else {
+          ctx.startWatchdog();
+          await engine.runQueue(jobs, { dryRun: true });
+          log('success', t('dryrun_total', { n: engine.state.grandTotal }));
+        }
+        return;
+      }
+
+      // Delete flow
+      log('verb', t('token_got_engine', { n: token.length }));
+      ctx.startWatchdog();
+      log('info', t('dms_processing', { n: jobs.length, mode: t('mode_delete') }));
+      const estimatedTotal = jobs.length <= 10 ? await engine.estimateTotal(jobs) : 0;
       if (estimatedTotal > 0) log('verb', t('est_total', { n: estimatedTotal }));
-      await engine.runQueue(jobs, { dryRun, estimatedTotal });
-      if (dryRun) log('success', t('dryrun_total', { n: engine.state.grandTotal }));
-      else { log('success', t('dm_all_done', { del: engine.state.delCount, fail: engine.state.failCount })); ctx.checkpoint.clear(); }
+      await engine.runQueue(jobs, { dryRun: false, estimatedTotal });
+      log('success', t('dm_all_done', { del: engine.state.delCount, fail: engine.state.failCount }));
+      ctx.checkpoint.clear();
     } catch (err) {
       log('error', t('dm_error', { err: err?.message || err }));
     } finally {
