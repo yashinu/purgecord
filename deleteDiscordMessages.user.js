@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/yashinu/purgecord
-// @version      0.3.3
+// @version      0.3.4
 // @description  Bulk delete Discord messages & DMs (based on undiscord, hardened)
 // @author       yashinu
 // @homepageURL  https://github.com/yashinu/purgecord
@@ -230,6 +230,7 @@
     };
     handle.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
+      if (e.target.closest("input, select, button, textarea, option, label, a")) return;
       e.preventDefault();
       const r = panel.getBoundingClientRect();
       sx = e.clientX;
@@ -1656,7 +1657,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.3.3";
+  var VERSION = "0.3.4";
   function boot() {
     if (window.__purgecord_loaded) return;
     window.__purgecord_loaded = true;

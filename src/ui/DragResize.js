@@ -15,6 +15,9 @@ export function makeDraggable(panel, handle) {
   };
   handle.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
+    // Don't hijack interactive header controls (the language <select>, Streamer checkbox,
+    // close button, etc.) — preventDefault here would block a <select> from opening.
+    if (e.target.closest('input, select, button, textarea, option, label, a')) return;
     e.preventDefault();
     const r = panel.getBoundingClientRect();
     sx = e.clientX; sy = e.clientY; st = r.top; sl = r.left;
