@@ -42,12 +42,12 @@ test('2xx anında döner, beklemez', async () => {
   assert.equal(waits.length, 0);
 });
 
-test('429 sonra 200: retry_after kadar bekler, throttled sayacı artar', async () => {
+test('429 sonra 200: retry_after × 2 bekler, throttled sayacı artar', async () => {
   const seq = [makeResp(429, { retry_after: 2 }), makeResp(200, {})];
   const { client, waits } = makeClient(scriptedFetch(seq));
   const resp = await client.request('u');
   assert.equal(resp.status, 200);
-  assert.deepEqual(waits, [2000]);
+  assert.deepEqual(waits, [4000]); // 2000 × retryAfterFactor(2)
   assert.equal(client.stats.throttledCount, 1);
 });
 
@@ -59,12 +59,12 @@ test('429 retry_after=0 ise asla 0 beklemez (clamp)', async () => {
   assert.ok(waits[0] >= 500);
 });
 
-test('202 (indexing) bekler ve tekrar dener', async () => {
+test('202 (indexing) bekler ve tekrar dener (2× pay)', async () => {
   const seq = [makeResp(202, { retry_after: 1.5 }), makeResp(200, {})];
   const { client, waits } = makeClient(scriptedFetch(seq));
   const resp = await client.request('u');
   assert.equal(resp.status, 200);
-  assert.deepEqual(waits, [1500]);
+  assert.deepEqual(waits, [3000]); // 1500 × 2
 });
 
 test('5xx sonra 200: üstel backoff ile tekrar', async () => {
@@ -108,11 +108,11 @@ test('abort sinyali AbortError fırlatır', async () => {
   await assert.rejects(() => client.request('u'), (e) => e instanceof AbortError);
 });
 
-test('global rate limit retry_after ile beklenir', async () => {
+test('global rate limit retry_after × 2 ile beklenir', async () => {
   const seq = [makeResp(429, { retry_after: 4 }, { 'x-ratelimit-global': 'true' }), makeResp(200)];
   const { client, waits } = makeClient(scriptedFetch(seq));
   await client.request('u');
-  assert.equal(waits[0], 4000);
+  assert.equal(waits[0], 8000); // 4000 × 2
 });
 
 test('noRetry: 429 yanıtını beklemeden ve retry yapmadan döndürür (tahmin için)', async () => {

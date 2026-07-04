@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Purgecord
 // @namespace    https://github.com/yashinu/purgecord
-// @version      0.3.5
+// @version      0.3.6
 // @description  Bulk delete Discord messages & DMs (based on undiscord, hardened)
 // @author       yashinu
 // @homepageURL  https://github.com/yashinu/purgecord
@@ -161,8 +161,8 @@
       <details class="pc-details"><summary>{{advanced}}</summary>
         <div class="pc-field" style="margin-top:10px"><label>{{delete_delay}} <span data-el="deleteDelayVal">1250</span>ms</label>
           <input data-el="deleteDelay" type="range" min="500" max="10000" step="50" value="1250" style="width:100%"></div>
-        <div class="pc-field"><label>{{page_delay}} <span data-el="searchDelayVal">1000</span>ms</label>
-          <input data-el="searchDelay" type="range" min="0" max="10000" step="50" value="1000" style="width:100%"></div>
+        <div class="pc-field"><label>{{page_delay}} <span data-el="searchDelayVal">2000</span>ms</label>
+          <input data-el="searchDelay" type="range" min="0" max="10000" step="50" value="2000" style="width:100%"></div>
         <div class="pc-field"><label>{{token}}</label>
           <div class="pc-row"><input class="pc-input" data-el="token" type="password" autocomplete="off" placeholder="{{token_ph}}">
           <button class="pc-btn pc-small" data-action="fillToken">{{btn_fill}}</button></div></div>
@@ -265,19 +265,31 @@
   }
 
   // src/core/backoff.js
-  var BACKOFF_DEFAULTS = { minDelay: 500, maxDelay: 6e4, base: 1e3, factor: 2 };
+  var BACKOFF_DEFAULTS = {
+    minDelay: 500,
+    maxDelay: 6e4,
+    base: 1e3,
+    factor: 2,
+    // Safety margin applied to the server's retry_after. Waiting *exactly*
+    // retry_after is spec-correct, but a hair of clock skew or a bucket shared
+    // with an in-flight request can immediately re-trip the limit. undiscord
+    // waits 2× retry_after and has run for years without account bans, so we
+    // match that proven-safe padding rather than the bare minimum.
+    retryAfterFactor: 2
+  };
   var clamp2 = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
   function computeBackoff({ status, retryAfterMs, attempt = 0, globalLimited = false }, opts = {}, rng = Math.random) {
     const o = { ...BACKOFF_DEFAULTS, ...opts };
+    const hasRetryAfter = typeof retryAfterMs === "number" && retryAfterMs > 0;
     let ms;
     if (status === 429 || status === 202) {
-      ms = typeof retryAfterMs === "number" && retryAfterMs > 0 ? retryAfterMs : o.base;
+      ms = hasRetryAfter ? retryAfterMs * o.retryAfterFactor : o.base;
     } else {
       const exp = o.base * Math.pow(o.factor, attempt);
       ms = exp + exp * 0.2 * rng();
     }
-    if (globalLimited && typeof retryAfterMs === "number" && retryAfterMs > 0) {
-      ms = Math.max(ms, retryAfterMs);
+    if (globalLimited && hasRetryAfter) {
+      ms = Math.max(ms, retryAfterMs * o.retryAfterFactor);
     }
     return clamp2(ms, o.minDelay, o.maxDelay);
   }
@@ -760,7 +772,7 @@
       this.onJobDone = onJobDone;
       this.onDelete = onDelete;
       this.saveCheckpoint = saveCheckpoint;
-      this.options = { deleteDelay: 1e3, searchDelay: 1e3, ...options };
+      this.options = { deleteDelay: 1e3, searchDelay: 2e3, ...options };
       this.resetState();
     }
     resetState() {
@@ -1682,7 +1694,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.3.5";
+  var VERSION = "0.3.6";
   function boot() {
     if (window.__purgecord_loaded) return;
     window.__purgecord_loaded = true;

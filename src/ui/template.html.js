@@ -67,8 +67,8 @@ export const panelHtml = `
       <details class="pc-details"><summary>{{advanced}}</summary>
         <div class="pc-field" style="margin-top:10px"><label>{{delete_delay}} <span data-el="deleteDelayVal">1250</span>ms</label>
           <input data-el="deleteDelay" type="range" min="500" max="10000" step="50" value="1250" style="width:100%"></div>
-        <div class="pc-field"><label>{{page_delay}} <span data-el="searchDelayVal">1000</span>ms</label>
-          <input data-el="searchDelay" type="range" min="0" max="10000" step="50" value="1000" style="width:100%"></div>
+        <div class="pc-field"><label>{{page_delay}} <span data-el="searchDelayVal">2000</span>ms</label>
+          <input data-el="searchDelay" type="range" min="0" max="10000" step="50" value="2000" style="width:100%"></div>
         <div class="pc-field"><label>{{token}}</label>
           <div class="pc-row"><input class="pc-input" data-el="token" type="password" autocomplete="off" placeholder="{{token_ph}}">
           <button class="pc-btn pc-small" data-action="fillToken">{{btn_fill}}</button></div></div>

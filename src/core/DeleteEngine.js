@@ -17,7 +17,7 @@ export class DeleteEngine {
     this.onJobDone = onJobDone;
     this.onDelete = onDelete;
     this.saveCheckpoint = saveCheckpoint;
-    this.options = { deleteDelay: 1000, searchDelay: 1000, ...options };
+    this.options = { deleteDelay: 1000, searchDelay: 2000, ...options };
     this.resetState();
   }
 

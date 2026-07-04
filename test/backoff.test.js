@@ -4,9 +4,14 @@ import { computeBackoff, BACKOFF_DEFAULTS } from '../src/core/backoff.js';
 
 const noJitter = () => 0;
 
-test('429 retry_after değerine saygı duyar', () => {
+test('429 retry_after değerine saygı duyar (undiscord gibi 2× pay ekler)', () => {
   const ms = computeBackoff({ status: 429, retryAfterMs: 3000, attempt: 0 }, {}, noJitter);
-  assert.equal(ms, 3000);
+  assert.equal(ms, 6000); // retry_after × retryAfterFactor(2)
+});
+
+test('retryAfterFactor opts ile ayarlanabilir', () => {
+  const ms = computeBackoff({ status: 429, retryAfterMs: 3000 }, { retryAfterFactor: 1 }, noJitter);
+  assert.equal(ms, 3000); // pay kapatıldığında tam retry_after
 });
 
 test('429 retry_after=0 ise base ile clamp edilir (asla 0)', () => {
@@ -20,9 +25,9 @@ test('429 retry_after undefined ise NaN/undefined dönmez', () => {
   assert.ok(Number.isFinite(ms) && ms >= BACKOFF_DEFAULTS.minDelay);
 });
 
-test('202 (indexing) retry_after ile bekler', () => {
+test('202 (indexing) retry_after ile bekler (2× pay)', () => {
   const ms = computeBackoff({ status: 202, retryAfterMs: 2500, attempt: 0 }, {}, noJitter);
-  assert.equal(ms, 2500);
+  assert.equal(ms, 5000); // 2500 × 2
 });
 
 test('5xx üstel backoff (jitter=0)', () => {
@@ -40,9 +45,9 @@ test('maxDelay ile clamp', () => {
   assert.equal(ms, BACKOFF_DEFAULTS.maxDelay); // 60000
 });
 
-test('globalLimited retry_after ile alt sınır uygular', () => {
+test('globalLimited retry_after ile alt sınır uygular (2× pay)', () => {
   const ms = computeBackoff({ status: 429, retryAfterMs: 5000, attempt: 0, globalLimited: true }, {}, noJitter);
-  assert.equal(ms, 5000);
+  assert.equal(ms, 10000); // 5000 × 2
 });
 
 test('jitter üstel değere eklenir', () => {
